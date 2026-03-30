@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,47 +29,38 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
-import coil.compose.AsyncImagePainter
 import coil.request.ImageRequest
 import com.UM.cityfix.R
 import com.UM.cityfix.components.uploadProfileImageToImgBB
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.yalantis.ucrop.UCrop // Ensure this import is here
+import java.io.File
 
 @Composable
 fun ProfileScreen(navController: NavHostController) {
     val db = FirebaseFirestore.getInstance()
     val auth = FirebaseAuth.getInstance()
     val userId = auth.currentUser?.uid
+    val context = LocalContext.current
 
     // State variables
-    var reportCount by remember { mutableIntStateOf(0) }
     var profileImageUrl by remember { mutableStateOf("") }
+    var reportCount by remember { mutableIntStateOf(0) }
     var userName by remember { mutableStateOf("City Fixer") }
     var isUploading by remember { mutableStateOf(false) }
-
-    val context = LocalContext.current
 
     // Fetch User Data on Load
     LaunchedEffect(userId) {
         userId?.let { id ->
-            // 1. Get total reports for this user
             db.collection("Issues").whereEqualTo("userId", id).get()
                 .addOnSuccessListener { result ->
                     reportCount = result.size()
                 }
 
-            // 2. Real-time Listener for user details (Name & Photo)
-            val docRef = db.collection("users").document(id)
-            docRef.addSnapshotListener { snapshot, e ->
-                if (e != null) return@addSnapshotListener
-
-                if (snapshot != null && snapshot.exists()) {
-                    val url = snapshot.getString("profilePicture")
-                    if (!url.isNullOrEmpty()) {
-                        profileImageUrl = url
-                    }
-
+            db.collection("users").document(id).addSnapshotListener { snapshot, e ->
+                if (e == null && snapshot != null && snapshot.exists()) {
+                    profileImageUrl = snapshot.getString("profilePicture") ?: ""
                     val fName = snapshot.getString("firstName") ?: ""
                     val lName = snapshot.getString("lastName") ?: ""
                     if (fName.isNotEmpty() || lName.isNotEmpty()) {
@@ -78,31 +71,49 @@ fun ProfileScreen(navController: NavHostController) {
         }
     }
 
-    // Photo Picker Launcher
-    val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
-        uri?.let {
-            isUploading = true
-            uploadProfileImageToImgBB(it, context) { newUrl ->
-                if (newUrl.isNotEmpty()) {
-                    saveProfilePhotoToFirestore(newUrl) { success ->
-                        isUploading = false
-                        if (success) {
-                            profileImageUrl = newUrl
-                            Toast.makeText(context, "Profile updated!", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(context, "Database save failed", Toast.LENGTH_SHORT).show()
+    // 1. Launcher for the Crop Result
+    val cropLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val resultUri = UCrop.getOutput(result.data!!)
+            resultUri?.let { cropped ->
+                isUploading = true
+                uploadProfileImageToImgBB(cropped, context) { newUrl ->
+                    if (newUrl.isNotEmpty()) {
+                        saveProfilePhotoToFirestore(newUrl) { success ->
+                            isUploading = false
+                            if (success) {
+                                profileImageUrl = newUrl
+                                Toast.makeText(context, "Profile updated!", Toast.LENGTH_SHORT).show()
+                            }
                         }
+                    } else {
+                        isUploading = false
+                        Toast.makeText(context, "Upload failed", Toast.LENGTH_SHORT).show()
                     }
-                } else {
-                    isUploading = false
-                    Toast.makeText(context, "Upload failed", Toast.LENGTH_SHORT).show()
                 }
             }
         }
     }
 
+    // 2. Launcher to Pick Image
+    val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let { sourceUri ->
+            val destinationUri = Uri.fromFile(File(context.cacheDir, "temp_profile.jpg"))
+            val options = UCrop.Options().apply {
+                setToolbarColor(android.graphics.Color.parseColor("#1976D2"))
+                setToolbarTitle("Adjust Photo")
+                setCircleDimmedLayer(true)
+            }
+            val uCropIntent = UCrop.of(sourceUri, destinationUri)
+                .withAspectRatio(1f, 1f)
+                .withOptions(options)
+                .getIntent(context)
+            cropLauncher.launch(uCropIntent)
+        }
+    }
+
     Scaffold(
-        bottomBar = { /* UserNavBar(navController = navController) */ }
+        bottomBar = { UserNavBar(navController = navController)}
     ) { padding ->
         Column(
             modifier = Modifier
@@ -126,10 +137,8 @@ fun ProfileScreen(navController: NavHostController) {
                         ) {
                             AsyncImage(
                                 model = ImageRequest.Builder(LocalContext.current)
-                                    .data(profileImageUrl)
+                                    .data(profileImageUrl.ifEmpty { })
                                     .crossfade(true)
-                                    .placeholder(R.drawable.pic_user)
-                                    .error(R.drawable.pic_user)
                                     .build(),
                                 contentDescription = "Profile Picture",
                                 modifier = Modifier
@@ -138,11 +147,8 @@ fun ProfileScreen(navController: NavHostController) {
                                     .background(Color.White)
                                     .alpha(if (isUploading) 0.5f else 1f),
                                 contentScale = ContentScale.Crop,
-                                onState = { state ->
-                                    if (state is AsyncImagePainter.State.Error) {
-                                        // Error handled by the error() placeholder in model
-                                    }
-                                }
+                                placeholder = painterResource(R.drawable.pic_user),
+                                error = painterResource(R.drawable.pic_user)
                             )
 
                             if (!isUploading) {
@@ -176,16 +182,6 @@ fun ProfileScreen(navController: NavHostController) {
                         fontWeight = FontWeight.Bold
                     )
 
-                    // Debug Link (Remove this before final submission if not needed)
-                    if (profileImageUrl.isNotEmpty()) {
-                        Text(
-                            text = "URL: $profileImageUrl",
-                            fontSize = 10.sp,
-                            color = Color.Yellow,
-                            modifier = Modifier.background(Color.Black).padding(horizontal = 4.dp)
-                        )
-                    }
-
                     Text(
                         text = "Verified Citizen",
                         color = Color.White.copy(alpha = 0.8f),
@@ -217,7 +213,7 @@ fun ProfileScreen(navController: NavHostController) {
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
                     ProfileMenuItem(Icons.Default.Settings, "Account Settings") { }
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
-                    ProfileMenuItem(Icons.Default.ExitToApp, "Logout", tint = Color.Red) {
+                    ProfileMenuItem(Icons.AutoMirrored.Filled.ExitToApp, "Logout", tint = Color.Red) {
                         auth.signOut()
                         navController.navigate("login") {
                             popUpTo(0) { inclusive = true }
@@ -257,7 +253,7 @@ fun ProfileMenuItem(icon: ImageVector, text: String, tint: Color = Color.Black, 
             Spacer(modifier = Modifier.width(16.dp))
             Text(text = text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
             Spacer(modifier = Modifier.weight(1f))
-            Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = Color.LightGray)
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = Color.LightGray)
         }
     }
 }

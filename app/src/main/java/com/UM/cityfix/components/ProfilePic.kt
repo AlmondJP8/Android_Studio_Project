@@ -1,63 +1,86 @@
 package com.UM.cityfix.components
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.widget.Toast
 import okhttp3.*
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
+import java.io.ByteArrayOutputStream
 import java.io.IOException
-import android.widget.Toast
+import java.util.concurrent.TimeUnit
 
-fun uploadProfileImageToImgBB(uri: Uri, context: android.content.Context, onResult: (String) -> Unit) {
-    val client = OkHttpClient()
+fun uploadProfileImageToImgBB(uri: Uri, context: Context, onResult: (String) -> Unit) {
+    val client = OkHttpClient.Builder()
+        .connectTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .build()
+
     val apiKey = "479dc74f47bdcd5f6fda547fec117b2e"
 
-    try {
-        val inputStream = context.contentResolver.openInputStream(uri)
-        val bytes = inputStream?.readBytes()
-        inputStream?.close()
+    Thread {
+        try {
+            val inputStream = context.contentResolver.openInputStream(uri)
+            val originalBitmap = BitmapFactory.decodeStream(inputStream)
+            inputStream?.close()
 
-        if (bytes == null) {
-            onResult("")
-            return
-        }
-
-        val requestBody = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("image", "profile.jpg", bytes.toRequestBody("image/*".toMediaTypeOrNull()))
-            .build()
-
-        val request = Request.Builder()
-            .url("https://api.imgbb.com/1/upload?key=$apiKey")
-            .post(requestBody)
-            .build()
-
-        client.newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
-                // Show why it failed in a Toast
-                android.os.Handler(android.os.Looper.getMainLooper()).post {
-                    android.widget.Toast.makeText(context, "Network Error: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
-                    onResult("")
-                }
+            if (originalBitmap == null) {
+                Handler(Looper.getMainLooper()).post { onResult("") }
+                return@Thread
             }
 
-            override fun onResponse(call: Call, response: Response) {
-                val responseData = response.body?.string()
-                if (response.isSuccessful && responseData != null) {
-                    val url = JSONObject(responseData).getJSONObject("data").getString("url")
-                    android.os.Handler(android.os.Looper.getMainLooper()).post {
-                        onResult(url)
-                    }
-                } else {
-                    android.os.Handler(android.os.Looper.getMainLooper()).post {
-                       Toast.makeText(context, "Server Error: ${response.code}", Toast.LENGTH_SHORT).show()
+            // Compression to make upload faster and prevent timeouts
+            val outputStream = ByteArrayOutputStream()
+            originalBitmap.compress(Bitmap.CompressFormat.JPEG, 70, outputStream)
+            val compressedBytes = outputStream.toByteArray()
+
+            val requestBody = MultipartBody.Builder()
+                .setType(MultipartBody.FORM)
+                .addFormDataPart(
+                    "image",
+                    "profile.jpg",
+                    compressedBytes.toRequestBody("image/jpeg".toMediaTypeOrNull())
+                )
+                .build()
+
+            val request = Request.Builder()
+                .url("https://api.imgbb.com/1/upload?key=$apiKey")
+                .post(requestBody)
+                .build()
+
+            client.newCall(request).enqueue(object : Callback {
+                override fun onFailure(call: Call, e: IOException) {
+                    Handler(Looper.getMainLooper()).post {
+                        Log.e("UPLOAD_ERROR", "Network failure: ${e.message}")
                         onResult("")
                     }
                 }
-            }
-        })
-    } catch (e: Exception) {
-        Toast.makeText(context, "File Error: ${e.message}", Toast.LENGTH_SHORT).show()
-        onResult("")
-    }
+
+                override fun onResponse(call: Call, response: Response) {
+                    val responseData = response.body?.string()
+                    if (response.isSuccessful && responseData != null) {
+                        try {
+                            val jsonResponse = JSONObject(responseData)
+                            // Use display_url for a direct image link
+                            val directImageUrl = jsonResponse.getJSONObject("data").getString("display_url")
+                            Handler(Looper.getMainLooper()).post { onResult(directImageUrl) }
+                        } catch (e: Exception) {
+                            Handler(Looper.getMainLooper()).post { onResult("") }
+                        }
+                    } else {
+                        Handler(Looper.getMainLooper()).post { onResult("") }
+                    }
+                }
+            })
+        } catch (e: Exception) {
+            Handler(Looper.getMainLooper()).post { onResult("") }
+        }
+    }.start()
 }
