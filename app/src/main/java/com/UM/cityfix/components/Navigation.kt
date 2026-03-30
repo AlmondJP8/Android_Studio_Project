@@ -24,7 +24,7 @@ import com.UM.cityfix.adminPage.ReportsPage
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.UM.cityfix.userpage.CommunityBoard
-import com.UM.cityfix.userpage.ProfilePlaceholderScreen
+import com.UM.cityfix.userpage.ProfileScreen
 import com.UM.cityfix.userpage.UserNavBar
 import com.UM.cityfix.userpage.submission
 
@@ -45,7 +45,7 @@ fun AppNav(navController: NavHostController) {
 
         composable("communitypage") { CommunityBoard(navController) }
         composable("submission") { submission(navController, onSuccess = { navController.popBackStack() }) }
-        composable("setting") { ProfilePlaceholderScreen() }
+        composable("setting") { ProfileScreen(navController = navController) }
 
         composable("comments/{suggestionId}", arguments = listOf(navArgument("suggestionId")
         { type = NavType.StringType })) { backStackEntry ->

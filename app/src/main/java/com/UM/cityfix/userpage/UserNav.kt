@@ -26,14 +26,9 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 
 @Composable
 fun UserNavBar(navController: NavHostController?) {
-    // 1. Get Context for the Toast
-    val context = LocalContext.current
-
-    // 2. Track which page we are currently on
     val navBackStackEntry by navController?.currentBackStackEntryAsState() ?: remember { mutableStateOf(null) }
     val activeRoute = navBackStackEntry?.destination?.route
 
-    // 3. Define the colors (Blue for active, Black for inactive)
     val itemColors = NavigationBarItemDefaults.colors(
         indicatorColor = Color(0xFFE3F2FD),
         selectedIconColor = Color(0xFF1976D2),
@@ -60,15 +55,11 @@ fun UserNavBar(navController: NavHostController?) {
                 NavigationBarItem(
                     selected = activeRoute == route,
                     onClick = {
-                        // LOGIC: Check if it's the Profile (setting) button
-                        if (route == "setting") {
-                            Toast.makeText(context, "Profile feature coming soon!", Toast.LENGTH_SHORT).show()
-                        }
-                        // LOGIC: Navigate if it's a different screen
-                        else if (activeRoute != route) {
-                            navController?.let { nav ->
-                                nav.navigate(route) {
-                                    nav.graph.startDestinationRoute?.let { start ->
+                        if (activeRoute != route) {
+                            navController?.let { controller -> // Safely use the controller
+                                controller.navigate(route) {
+                                    // Pop up to the start destination to avoid building up a large stack
+                                    controller.graph.startDestinationRoute?.let { start ->
                                         popUpTo(start) { saveState = true }
                                     }
                                     launchSingleTop = true

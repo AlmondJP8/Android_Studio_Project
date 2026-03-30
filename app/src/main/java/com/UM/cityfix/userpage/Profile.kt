@@ -1,21 +1,277 @@
 package com.UM.cityfix.userpage
 
+import android.net.Uri
 import android.widget.Toast
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.navigation.NavHostController
+import coil.compose.AsyncImage
+import coil.compose.AsyncImagePainter
+import coil.request.ImageRequest
+import com.UM.cityfix.R
+import com.UM.cityfix.components.uploadProfileImageToImgBB
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 @Composable
-fun ProfilePlaceholderScreen() {
+fun ProfileScreen(navController: NavHostController) {
+    val db = FirebaseFirestore.getInstance()
+    val auth = FirebaseAuth.getInstance()
+    val userId = auth.currentUser?.uid
+
+    // State variables
+    var reportCount by remember { mutableIntStateOf(0) }
+    var profileImageUrl by remember { mutableStateOf("") }
+    var userName by remember { mutableStateOf("City Fixer") }
+    var isUploading by remember { mutableStateOf(false) }
+
     val context = LocalContext.current
 
-    // LaunchedEffect runs as soon as this screen is "shown"
-    LaunchedEffect(Unit) {
-        Toast.makeText(context, "Profile feature coming soon!", Toast.LENGTH_SHORT).show()
+    // Fetch User Data on Load
+    LaunchedEffect(userId) {
+        userId?.let { id ->
+            // 1. Get total reports for this user
+            db.collection("Issues").whereEqualTo("userId", id).get()
+                .addOnSuccessListener { result ->
+                    reportCount = result.size()
+                }
+
+            // 2. Real-time Listener for user details (Name & Photo)
+            val docRef = db.collection("users").document(id)
+            docRef.addSnapshotListener { snapshot, e ->
+                if (e != null) return@addSnapshotListener
+
+                if (snapshot != null && snapshot.exists()) {
+                    val url = snapshot.getString("profilePicture")
+                    if (!url.isNullOrEmpty()) {
+                        profileImageUrl = url
+                    }
+
+                    val fName = snapshot.getString("firstName") ?: ""
+                    val lName = snapshot.getString("lastName") ?: ""
+                    if (fName.isNotEmpty() || lName.isNotEmpty()) {
+                        userName = "$fName $lName".trim()
+                    }
+                }
+            }
+        }
     }
 
-    // Keep the screen empty or show a simple "Coming Soon" text
-//    Box(modifier = Modifier.fillMaxSize()) {
-//        // You can leave this empty so it looks like it's loading or just a blank scaffold
-//    }
+    // Photo Picker Launcher
+    val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            isUploading = true
+            uploadProfileImageToImgBB(it, context) { newUrl ->
+                if (newUrl.isNotEmpty()) {
+                    saveProfilePhotoToFirestore(newUrl) { success ->
+                        isUploading = false
+                        if (success) {
+                            profileImageUrl = newUrl
+                            Toast.makeText(context, "Profile updated!", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "Database save failed", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } else {
+                    isUploading = false
+                    Toast.makeText(context, "Upload failed", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    Scaffold(
+        bottomBar = { /* UserNavBar(navController = navController) */ }
+    ) { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .background(Color(0xFFF8F9FA))
+        ) {
+            // --- 1. HEADER SECTION ---
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(230.dp)
+                    .background(Color(0xFF1976D2)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.size(110.dp)) {
+                        Box(
+                            contentAlignment = Alignment.BottomEnd,
+                            modifier = Modifier.clickable(enabled = !isUploading) { launcher.launch("image/*") }
+                        ) {
+                            AsyncImage(
+                                model = ImageRequest.Builder(LocalContext.current)
+                                    .data(profileImageUrl)
+                                    .crossfade(true)
+                                    .placeholder(R.drawable.pic_user)
+                                    .error(R.drawable.pic_user)
+                                    .build(),
+                                contentDescription = "Profile Picture",
+                                modifier = Modifier
+                                    .size(100.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                                    .alpha(if (isUploading) 0.5f else 1f),
+                                contentScale = ContentScale.Crop,
+                                onState = { state ->
+                                    if (state is AsyncImagePainter.State.Error) {
+                                        // Error handled by the error() placeholder in model
+                                    }
+                                }
+                            )
+
+                            if (!isUploading) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = "Edit",
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .background(Color.White, CircleShape)
+                                        .padding(6.dp),
+                                    tint = Color(0xFF1976D2)
+                                )
+                            }
+                        }
+
+                        if (isUploading) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(40.dp),
+                                color = Color.White,
+                                strokeWidth = 4.dp
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text(
+                        text = userName,
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+
+                    // Debug Link (Remove this before final submission if not needed)
+                    if (profileImageUrl.isNotEmpty()) {
+                        Text(
+                            text = "URL: $profileImageUrl",
+                            fontSize = 10.sp,
+                            color = Color.Yellow,
+                            modifier = Modifier.background(Color.Black).padding(horizontal = 4.dp)
+                        )
+                    }
+
+                    Text(
+                        text = "Verified Citizen",
+                        color = Color.White.copy(alpha = 0.8f),
+                        fontSize = 14.sp
+                    )
+                }
+            }
+
+            // --- 2. STATS ROW ---
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                StatCard("Reports", reportCount.toString(), Modifier.weight(1f))
+                StatCard("Resolved", "0", Modifier.weight(1f))
+                StatCard("Points", (reportCount * 10).toString(), Modifier.weight(1f))
+            }
+
+            // --- 3. MENU LIST ---
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column {
+                    ProfileMenuItem(Icons.Default.History, "My Report History") { }
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
+                    ProfileMenuItem(Icons.Default.Notifications, "Notifications") { }
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
+                    ProfileMenuItem(Icons.Default.Settings, "Account Settings") { }
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
+                    ProfileMenuItem(Icons.Default.ExitToApp, "Logout", tint = Color.Red) {
+                        auth.signOut()
+                        navController.navigate("login") {
+                            popUpTo(0) { inclusive = true }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun StatCard(label: String, value: String, modifier: Modifier = Modifier) {
+    ElevatedCard(modifier = modifier, shape = RoundedCornerShape(12.dp)) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(text = value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1976D2))
+            Text(text = label, fontSize = 12.sp, color = Color.Gray)
+        }
+    }
+}
+
+@Composable
+fun ProfileMenuItem(icon: ImageVector, text: String, tint: Color = Color.Black, onClick: () -> Unit) {
+    TextButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        colors = ButtonDefaults.textButtonColors(contentColor = tint)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(imageVector = icon, contentDescription = null, modifier = Modifier.size(24.dp))
+            Spacer(modifier = Modifier.width(16.dp))
+            Text(text = text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+            Spacer(modifier = Modifier.weight(1f))
+            Icon(Icons.Default.KeyboardArrowRight, contentDescription = null, tint = Color.LightGray)
+        }
+    }
+}
+
+fun saveProfilePhotoToFirestore(url: String, onComplete: (Boolean) -> Unit) {
+    val userId = FirebaseAuth.getInstance().currentUser?.uid ?: return
+    val db = FirebaseFirestore.getInstance()
+
+    db.collection("users").document(userId)
+        .update("profilePicture", url)
+        .addOnSuccessListener { onComplete(true) }
+        .addOnFailureListener {
+            db.collection("users").document(userId)
+                .set(mapOf("profilePicture" to url), com.google.firebase.firestore.SetOptions.merge())
+                .addOnCompleteListener { task -> onComplete(task.isSuccessful) }
+        }
 }
