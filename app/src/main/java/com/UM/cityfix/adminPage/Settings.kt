@@ -1,4 +1,4 @@
-package com.UM.cityfix.userpage
+package com.UM.cityfix.adminPage
 
 import android.net.Uri
 import android.widget.Toast
@@ -42,7 +42,7 @@ import java.io.File
 
 
 @Composable
-fun ProfileScreen(navController: NavHostController) {
+fun Settings(navController: NavHostController) {
     val db = FirebaseFirestore.getInstance()
     val auth = FirebaseAuth.getInstance()
     val userId = auth.currentUser?.uid
@@ -146,7 +146,7 @@ fun ProfileScreen(navController: NavHostController) {
 
     // --- UI Layout (Keep your existing Scaffold and StatCards) ---
     Scaffold(
-        bottomBar = { UserNavBar(navController = navController)}
+        bottomBar = { AdminBottomBar(navController = navController, currentRoute = "dashboard")}
     ) { padding ->
         Column(
             modifier = Modifier

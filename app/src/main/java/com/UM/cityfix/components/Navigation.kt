@@ -21,6 +21,7 @@ import com.UM.cityfix.adminPage.Issues.Waste
 import com.UM.cityfix.adminPage.Issues.Water
 import com.UM.cityfix.adminPage.MapScreen
 import com.UM.cityfix.adminPage.ReportsPage
+import com.UM.cityfix.adminPage.Settings
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.UM.cityfix.userpage.CommunityBoard
@@ -60,12 +61,15 @@ fun AppNav(navController: NavHostController) {
             arguments = listOf(
                 navArgument("lat") { defaultValue = "0.0" },
                 navArgument("lng") { defaultValue = "0.0" }
+
             )
         ) { backStackEntry ->
             val lat = backStackEntry.arguments?.getString("lat")?.toDoubleOrNull() ?: 0.0
             val lng = backStackEntry.arguments?.getString("lng")?.toDoubleOrNull() ?: 0.0
             MapScreen(lat = lat, lng = lng, navController = navController)
         }
+        composable("setting") { Settings(navController = navController) }
+
 
         composable(
             route = "issueDetail/{issueId}",

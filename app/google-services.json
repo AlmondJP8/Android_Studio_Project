@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "37937137798",
-    "project_id": "cityfix-81599",
-    "storage_bucket": "cityfix-81599.firebasestorage.app"
+    "project_number": "716984414473",
+    "project_id": "cityfix-82d40",
+    "storage_bucket": "cityfix-82d40.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:37937137798:android:8e26e24c70d022cbcde907",
+        "mobilesdk_app_id": "1:716984414473:android:2e2092749b084819d8a3d8",
         "android_client_info": {
           "package_name": "com.UM.cityfix"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyBlaQk-2ScZw65-G20TiiuPI5bL2iJsxLw"
+          "current_key": "AIzaSyCaOHkDrER53SbZVX8XWrukzY7F7hO_LOo"
         }
       ],
       "services": {

@@ -42,20 +42,9 @@ import androidx.navigation.NavHostController
 import coil.compose.rememberAsyncImagePainter
 import com.google.android.gms.location.LocationServices
 import com.google.firebase.firestore.FirebaseFirestore
-import okhttp3.Call
-import okhttp3.Callback
-import okhttp3.MediaType.Companion.toMediaTypeOrNull
-import okhttp3.MultipartBody
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.asRequestBody
-import okhttp3.Response
-import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
-import java.io.IOException
 import android.graphics.Bitmap
-import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.launch
 import androidx.compose.ui.graphics.Color
@@ -63,6 +52,8 @@ import com.google.android.gms.common.api.ResolvableApiException
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationSettingsRequest
 import com.google.android.gms.location.Priority
+import com.google.firebase.auth.FirebaseAuth
+import com.UM.cityfix.components.uploadToCloudinary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -111,14 +102,10 @@ fun submission(navController: NavHostController? = null, onSuccess: () -> Unit) 
     }
 
     LaunchedEffect(Unit) {
-        permissionLauncher.launch(arrayOf(
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.CAMERA
-        ))
+        permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.CAMERA))
     }
 
     // --- Submission Logic ---
-
     @SuppressLint("MissingPermission")
     fun saveToFirestore(imageUrl: String) {
         // Fetch location before final save
@@ -135,7 +122,8 @@ fun submission(navController: NavHostController? = null, onSuccess: () -> Unit) 
                 "latitude" to lat,
                 "longitude" to lng,
                 "status" to "Pending",
-                "timestamp" to com.google.firebase.Timestamp.now()
+                "timestamp" to com.google.firebase.Timestamp.now(),
+                "userId" to FirebaseAuth.getInstance().currentUser?.uid
             )
 
             // UPDATED: Path changed to "Issues"
@@ -152,71 +140,45 @@ fun submission(navController: NavHostController? = null, onSuccess: () -> Unit) 
         }
     }
 
-    fun uploadToImgBB() {
+    fun startCloudinaryUpload() {
         if (imageUri == null || title.isEmpty() || selectedCategory.isEmpty()) {
             Toast.makeText(context, "Please complete the form", Toast.LENGTH_SHORT).show()
+            isSubmitting = false
             return
         }
 
-        isSubmitting = true
-        val apiKey = "479dc74f47bdcd5f6fda547fec117b2e"
+        try {
+            // Safe way to get Bitmap from Uri
+            val inputStream = context.contentResolver.openInputStream(imageUri!!)
+            val bitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
 
-        // 1. Prepare File
-        val inputStream = context.contentResolver.openInputStream(imageUri!!)
-        val tempFile = File.createTempFile("upload", ".jpg", context.cacheDir)
-        val outputStream = FileOutputStream(tempFile)
-        inputStream?.use { input -> outputStream.use { output -> input.copyTo(output) } }
+            val tempFile = File(context.cacheDir, "upload_ready.jpg")
+            val out = FileOutputStream(tempFile)
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 70, out) // Smaller = Faster
+            out.close()
 
-        // 2. Prepare Request
-        val client = OkHttpClient()
-        val requestBody = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart("key", apiKey)
-            .addFormDataPart("image", tempFile.name, tempFile.asRequestBody("image/jpeg".toMediaTypeOrNull()))
-            .build()
-
-        val request = Request.Builder()
-            .url("https://api.imgbb.com/1/upload")
-            .post(requestBody)
-            .build()
-
-        // 3. Execute
-        client.newCall(request).enqueue(object : Callback {
-            override fun onFailure(call: Call, e: IOException) {
+            uploadToCloudinary(Uri.fromFile(tempFile), context) { secureUrl ->
                 (context as? Activity)?.runOnUiThread {
-                    isSubmitting = false
-                    Toast.makeText(context, "Network Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-
-            override fun onResponse(call: Call, response: Response) {
-                response.use {
-                    val responseData = it.body?.string()
-                    if (it.isSuccessful && responseData != null) {
-                        val json = JSONObject(responseData)
-                        val url = json.getJSONObject("data").getString("url")
-
-                        // Switch back to Main Thread for UI/Firebase
-                        (context as? Activity)?.runOnUiThread {
-                            saveToFirestore(url)
-                        }
+                    if (secureUrl.isNotEmpty()) {
+                        saveToFirestore(secureUrl)
                     } else {
-                        (context as? Activity)?.runOnUiThread {
-                            isSubmitting = false
-                            Toast.makeText(context, "ImgBB Error: Check API Key", Toast.LENGTH_SHORT).show()
-                        }
+                        isSubmitting = false
+                        // Check Logcat for "Cloudinary" tag to see the specific error!
+                        Toast.makeText(context, "Upload Failed. Check settings.", Toast.LENGTH_LONG).show()
                     }
                 }
             }
-        })
+        } catch (e: Exception) {
+            isSubmitting = false
+            Toast.makeText(context, "Error processing image", Toast.LENGTH_SHORT).show()
+        }
     }
 
     val gpsLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
-            // User clicked "OK", now we can proceed!
-            uploadToImgBB()
+            startCloudinaryUpload()
         } else {
             isSubmitting = false
             Toast.makeText(context, "Location must be on to submit", Toast.LENGTH_SHORT).show()
@@ -305,8 +267,7 @@ fun submission(navController: NavHostController? = null, onSuccess: () -> Unit) 
                 onClick = {
                     isSubmitting = true
                     checkLocationSettingsAndSubmit {
-                        // This only runs if GPS is confirmed ON
-                        uploadToImgBB()
+                        startCloudinaryUpload()
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),

@@ -98,18 +98,11 @@ fun ReportsPage(navController: NavController?) {
                 activeCategories.contains("waste") && !readCategories.contains("waste"))
         )
     }
-    Scaffold(
-        bottomBar = { AdminBottomBar(navController = navController, currentRoute = currentRoute)
-        }
+    Scaffold(bottomBar = { AdminBottomBar(navController = navController, currentRoute = currentRoute) }
     ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .MainBG()
-                .fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
+        Column(modifier = Modifier.MainBG().fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally)
+        {
             AdminHeader()
-
             Column(
                 modifier = Modifier
                     .padding(bottom = innerPadding.calculateBottomPadding()) // Respect the bottom bar

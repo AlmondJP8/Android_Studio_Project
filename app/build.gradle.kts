@@ -38,10 +38,11 @@ android {
 
 dependencies {
 // Firebase
-    implementation(platform("com.google.firebase:firebase-bom:33.1.0"))
     implementation("com.google.firebase:firebase-storage")
     implementation("com.google.firebase:firebase-auth")
     implementation(libs.firebase.firestore)
+    implementation(platform("com.google.firebase:firebase-bom:34.11.0"))
+    implementation("com.google.android.gms:play-services-auth:21.5.1")
 
     //image
     implementation("com.squareup.retrofit2:retrofit:2.9.0")

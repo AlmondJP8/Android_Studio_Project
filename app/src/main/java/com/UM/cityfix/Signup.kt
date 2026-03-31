@@ -1,5 +1,6 @@
 package com.UM.cityfix
 
+import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
@@ -30,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -44,6 +46,7 @@ fun Signup(navController: NavHostController? = null) {
 
     val auth = FirebaseAuth.getInstance()
     val db = FirebaseFirestore.getInstance()
+    val context = LocalContext.current
 
 // States for Input Fields
     var firstName by remember { mutableStateOf("") }
@@ -161,21 +164,23 @@ fun Signup(navController: NavHostController? = null) {
                                         "role" to "user"
                                     )
 
-                                    // 3. Save to "users" collection using the UID as the Document ID
+                                    // 3. Save to "users" collection
                                     if (userId != null) {
                                         db.collection("users").document(userId)
                                             .set(userMap)
                                             .addOnSuccessListener {
-                                                showDialog = true // Trigger your success dialog
+                                                showDialog = true
                                             }
                                             .addOnFailureListener { e ->
-                                                // Handle Firestore error (e.g., show a Toast)
+                                                Toast.makeText(context, "Firestore Error: ${e.message}", Toast.LENGTH_LONG).show()
                                             }
                                     }
                                 }
                                 .addOnFailureListener { e ->
-                                    // Handle Auth error (e.g., email already exists)
+                                    Toast.makeText(context, "Auth Error: ${e.message}", Toast.LENGTH_LONG).show()
                                 }
+                        } else {
+                            Toast.makeText(context, "Please fill in all fields", Toast.LENGTH_SHORT).show()
                         }
                     },
                     modifier = Modifier.fillMaxWidth().height(50.dp),
@@ -199,5 +204,3 @@ fun Signup(navController: NavHostController? = null) {
         Spacer(modifier = Modifier.weight(0.1f))
     }
 }
-
-

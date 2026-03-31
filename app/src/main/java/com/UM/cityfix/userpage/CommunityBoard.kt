@@ -1,6 +1,5 @@
 package com.UM.cityfix.userpage
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,9 +32,7 @@ import com.UM.cityfix.components.Header
 import com.UM.cityfix.components.MainBG
 import com.UM.cityfix.components.Suggestion
 import com.UM.cityfix.components.SuggestionItem
-import com.UM.cityfix.components.button
 import com.UM.cityfix.ui.theme.appName
-import com.UM.cityfix.ui.theme.buttonText
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -69,18 +66,6 @@ fun CommunityBoard(navController: NavHostController? = null) {
             Row(Modifier.Header().fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("Community Board", style = appName)
                 Spacer(Modifier.weight(1f))
-
-                // LOGOUT BUTTON
-                Text(
-                    "Logout",
-                    Modifier.button().clickable {
-                        auth.signOut()
-                        navController?.navigate("login") {
-                            popUpTo(0) { inclusive = true }
-                        }
-                    },
-                    style = buttonText
-                )
             }
             LazyColumn(
                 modifier = Modifier
