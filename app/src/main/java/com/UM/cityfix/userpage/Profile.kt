@@ -40,7 +40,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.yalantis.ucrop.UCrop
 import java.io.File
 
-
 @Composable
 fun ProfileScreen(navController: NavHostController) {
     val db = FirebaseFirestore.getInstance()
