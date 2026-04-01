@@ -200,7 +200,6 @@ fun ProfileScreen(navController: NavHostController) {
             Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatCard("Reports", reportCount.toString(), Modifier.weight(1f))
                 StatCard("Resolved", resolvedCount.toString(), Modifier.weight(1f))
-                StatCard("Points", (reportCount * 10).toString(), Modifier.weight(1f))
             }
 
             // MENU LIST

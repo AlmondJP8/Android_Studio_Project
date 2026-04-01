@@ -40,7 +40,6 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.yalantis.ucrop.UCrop
 import java.io.File
 
-
 @Composable
 fun Settings(navController: NavHostController) {
     val db = FirebaseFirestore.getInstance()
@@ -201,7 +200,6 @@ fun Settings(navController: NavHostController) {
             Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 StatCard("Reports", reportCount.toString(), Modifier.weight(1f))
                 StatCard("Resolved", resolvedCount.toString(), Modifier.weight(1f))
-                StatCard("Points", (reportCount * 10).toString(), Modifier.weight(1f))
             }
 
             // MENU LIST
@@ -222,26 +220,6 @@ fun Settings(navController: NavHostController) {
                 }
             }
 
-            // RECENT REPORTS
-            Spacer(modifier = Modifier.height(24.dp))
-            Text("Recent Reports", modifier = Modifier.padding(horizontal = 24.dp), fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (userIssues.isEmpty()) {
-                Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
-                    Text("No reports found", color = Color.Gray)
-                }
-            } else {
-                // Inside your ProfileScreen loop:
-                userIssues.forEach { issue ->
-                    ProfileIssueItem(
-                        title = issue["title"]?.toString() ?: "General Issue",
-                        status = issue["status"]?.toString() ?: "Pending",
-                        location = issue["locationName"]?.toString() ?: "No description",
-                        imageUrl = issue["imageUrl"]?.toString() ?.replace("/upload/", "/upload/w_200,c_thumb/") ?: ""
-                    )
-                }
-            }
             Spacer(modifier = Modifier.height(32.dp))
         }
     }

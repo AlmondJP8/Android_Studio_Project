@@ -48,7 +48,7 @@ fun UserNavBar(navController: NavHostController?) {
             val navItems = listOf(
                 Triple("communitypage", "Community", R.drawable.pic_community),
                 Triple("submission", "Submit Ticket", R.drawable.pic_ticket),
-                Triple("setting", "Profile", R.drawable.pic_user)
+                Triple("profile", "Profile", R.drawable.pic_user)
             )
 
             navItems.forEach { (route, label, iconRes) ->

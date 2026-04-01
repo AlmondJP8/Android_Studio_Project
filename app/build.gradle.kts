@@ -50,6 +50,9 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("com.github.yalantis:ucrop:2.2.8")
 
+    implementation(platform("androidx.compose:compose-bom:2025.02.00"))
+    implementation(platform(libs.androidx.compose.bom))
+    implementation("androidx.compose.foundation:foundation-layout")
     implementation("androidx.compose.material:material-icons-extended")
 
     // UI & Navigation
@@ -71,6 +74,7 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
+    implementation(libs.play.services.tflite.support)
 
     // Testing
     testImplementation(libs.junit)

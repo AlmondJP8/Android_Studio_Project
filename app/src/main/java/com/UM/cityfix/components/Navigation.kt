@@ -46,7 +46,7 @@ fun AppNav(navController: NavHostController) {
 
         composable("communitypage") { CommunityBoard(navController) }
         composable("submission") { submission(navController, onSuccess = { navController.popBackStack() }) }
-        composable("setting") { ProfileScreen(navController = navController) }
+        composable("profile") { ProfileScreen(navController = navController) }
 
         composable("comments/{suggestionId}", arguments = listOf(navArgument("suggestionId")
         { type = NavType.StringType })) { backStackEntry ->

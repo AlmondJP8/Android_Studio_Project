@@ -8,38 +8,51 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.filled.ModeComment
 import androidx.compose.material.icons.filled.ThumbDown
 import androidx.compose.material.icons.filled.ThumbUp
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
+import com.UM.cityfix.R
+import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 
 data class Suggestion(
     val id: String = "",
+    val authorId: String = "",
     val author: String = "",
     val content: String = "",
+    val imageUrl: String? = null,
     val likedBy: List<String> = emptyList(),
     val dislikedBy: List<String> = emptyList(),
     val commentCount: Int = 0,
-    val timestamp: Long = System.currentTimeMillis()
-)
-
-data class Comment(
-    val id: String = "",
-    val author: String = "",
-    val text: String = "",
     val timestamp: Long = System.currentTimeMillis()
 )
 
@@ -52,13 +65,26 @@ fun formatTimeAgo(timestamp: Long): String {
 }
 
 @Composable
-fun SuggestionItem(item: Suggestion, navController: NavHostController? = null) {
+fun SuggestionItem(item: Suggestion, onCommentClick: (String) -> Unit) {
     val db = FirebaseFirestore.getInstance()
     val auth = FirebaseAuth.getInstance()
     val userId = auth.currentUser?.uid ?: ""
+    var profilePicUrl by remember { mutableStateOf<String?>(null) }
 
     val isLiked = item.likedBy.contains(userId)
     val isDisliked = item.dislikedBy.contains(userId)
+
+    LaunchedEffect(item.author) {
+        db.collection("users")
+            .whereEqualTo("email", item.author) // Search for the doc where email matches
+            .get()
+            .addOnSuccessListener { querySnapshot ->
+                if (!querySnapshot.isEmpty) {
+                    val document = querySnapshot.documents[0]
+                    profilePicUrl = document.getString("profilePicture")
+                }
+            }
+    }
 
     Column(modifier = Modifier.tutorialBox().padding(5.dp)) {
         // Author and Time Row
@@ -67,11 +93,30 @@ fun SuggestionItem(item: Suggestion, navController: NavHostController? = null) {
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = item.author.split("@")[0],
-                fontWeight = FontWeight.Bold,
-                color = Color.White
+            AsyncImage(
+                model = profilePicUrl, // This is the URL from Firestore
+                contentDescription = "Profile Picture",
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(CircleShape), // Makes the image round
+                contentScale = ContentScale.Crop,
+                placeholder = painterResource(id = R.drawable.pic_user)
             )
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f), // Takes up remaining horizontal space
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = item.author.split("@")[0],
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+            }
+
             Text(
                 text = formatTimeAgo(item.timestamp),
                 style = MaterialTheme.typography.labelSmall,
@@ -79,8 +124,26 @@ fun SuggestionItem(item: Suggestion, navController: NavHostController? = null) {
             )
         }
 
-        Spacer(modifier = Modifier.height(8.dp))
+        HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp), thickness = 0.9.dp)
+
         Text(text = item.content, color = Color.White)
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // ADD THIS BLOCK:
+        if (!item.imageUrl.isNullOrEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            AsyncImage(
+                model = item.imageUrl,
+                contentDescription = "Suggestion Image",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+        }
+
         Spacer(modifier = Modifier.height(8.dp))
 
         // Interaction Row: Like, Dislike, and Comment
@@ -125,7 +188,7 @@ fun SuggestionItem(item: Suggestion, navController: NavHostController? = null) {
 
             // COMMENT BUTTON
             IconButton(onClick = {
-                navController?.navigate("comments/${item.id}")
+                onCommentClick(item.id) // This triggers the sheet in the parent
             }) {
                 Icon(
                     imageVector = androidx.compose.material.icons.Icons.Default.ModeComment,
