@@ -104,10 +104,11 @@ fun ProfileScreen(navController: NavHostController) {
                 }
 
                 // --- CLOUDINARY UPLOAD ---
-                uploadToCloudinary(Uri.fromFile(compressedFile), context) { newUrl ->
+                uploadToCloudinary(Uri.fromFile(compressedFile), "Profile") { newUrl ->
                     if (newUrl.isNotEmpty()) {
                         saveProfilePhotoToFirestore(newUrl) { success ->
                             isUploading = false
+                            // ...
                             if (success) {
                                 profileImageUrl = newUrl
                                 (context as? android.app.Activity)?.runOnUiThread {
@@ -126,15 +127,25 @@ fun ProfileScreen(navController: NavHostController) {
         }
     }
 
-    // 2. Launcher to Pick Image (Unchanged)
+    // 2. Launcher to Pick Image
     val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { sourceUri ->
             val destinationUri = Uri.fromFile(File(context.cacheDir, "temp_profile.jpg"))
+
             val options = UCrop.Options().apply {
-                setToolbarColor(android.graphics.Color.parseColor("#1976D2"))
+                val brandColor = android.graphics.Color.parseColor("#1976D2")
+                setToolbarColor(brandColor)
+                setStatusBarColor(brandColor)
+                setToolbarWidgetColor(android.graphics.Color.WHITE)
                 setToolbarTitle("Adjust Photo")
+                setHideBottomControls(false)
+
+                // 3. UI Look
                 setCircleDimmedLayer(true)
+                setShowCropFrame(false)
+                setShowCropGrid(false)
             }
+
             val uCropIntent = UCrop.of(sourceUri, destinationUri)
                 .withAspectRatio(1f, 1f)
                 .withOptions(options)

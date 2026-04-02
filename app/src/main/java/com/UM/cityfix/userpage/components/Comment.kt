@@ -1,4 +1,4 @@
-package com.UM.cityfix.components
+package com.UM.cityfix.userpage.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -26,6 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -46,6 +47,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import com.UM.cityfix.R
+import com.UM.cityfix.components.ExpandableText
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -81,9 +83,7 @@ fun CommentScreen(navController: NavHostController, suggestionId: String) {
             }
     }
 
-    Scaffold(
-        topBar = { /* Optional: Add a Back Button here */ }
-    ) { padding ->
+    Scaffold() { padding ->
         Column(
             modifier = Modifier
                 .padding(padding)
@@ -163,7 +163,7 @@ fun CommentItem(comment: Comment) {
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp)
-            .background(Color(0x86FDFDFD)),
+            .background(Color(0x11FDFDFD)),
         verticalAlignment = Alignment.Top
     ) {
         AsyncImage(
@@ -205,10 +205,11 @@ fun CommentItem(comment: Comment) {
             Spacer(modifier = Modifier.height(2.dp))
 
             // The Comment Content
-            Text(
+            ExpandableText(
                 text = comment.text,
-                fontSize = 14.sp,
-                color = Color.Black
+                textColor = Color.Black,
+                clickableColor = Color.Black,
+                minimizedMaxLines = 1
             )
 
             HorizontalDivider(
@@ -223,7 +224,6 @@ fun CommentItem(comment: Comment) {
 @Composable
 fun CommentSheetContent(suggestionId: String) {
     val db = FirebaseFirestore.getInstance()
-    val auth = FirebaseAuth.getInstance()
     var commentText by remember { mutableStateOf("") }
     val comments = remember { mutableStateListOf<Comment>() }
     val listState = rememberLazyListState()
@@ -250,61 +250,38 @@ fun CommentSheetContent(suggestionId: String) {
 
     Column(
         modifier = Modifier
-            .fillMaxHeight(0.85f)
+            .fillMaxHeight(0.6f) // Set a specific height so it doesn't float
             .fillMaxWidth()
             .background(Color.White)
-            .navigationBarsPadding()
-            .imePadding()
+            .navigationBarsPadding() // Keeps it above the system nav bar
+            .imePadding()            // Pushes it up when keyboard opens
     ) {
-        Text(
-            "Comments",
-            modifier = Modifier.padding(16.dp),
-            color = Color.Black,
-            fontWeight = FontWeight.Bold
-        )
+        Text("Comments", modifier = Modifier.padding(16.dp), fontWeight = FontWeight.Bold)
 
-        // LazyColumn with weight(1f) is critical: it shrinks to let the keyboard fit
         LazyColumn(
-            state = listState,
             modifier = Modifier
-                .weight(1f)
+                .weight(1f) // CRITICAL: This allows the input box to stay visible
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
         ) {
-            items(comments) { comment ->
-                CommentItem(comment)
-            }
+            items(comments) { comment -> CommentItem(comment) }
         }
 
-        // Bottom Input Row
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+        // The Input Box - Ensure this is OUTSIDE the LazyColumn but INSIDE the Column
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            tonalElevation = 2.dp,
+            color = Color.White
         ) {
-            OutlinedTextField(
-                value = commentText,
-                onValueChange = { commentText = it },
-                modifier = Modifier.weight(1f),
-                placeholder = { Text("Add a comment...", color = Color.Gray) },
-                textStyle = androidx.compose.ui.text.TextStyle(color = Color.Black)
-            )
-            IconButton(onClick = {
-                if (commentText.isNotBlank()) {
-                    val id = db.collection("suggestions").document(suggestionId).collection("comments").document().id
-                    val newComment = Comment(
-                        id = id,
-                        author = auth.currentUser?.email ?: "Anonymous",
-                        text = commentText,
-                        timestamp = System.currentTimeMillis()
-                    )
-                    db.collection("suggestions").document(suggestionId).collection("comments").document(id).set(newComment)
-                    db.collection("suggestions").document(suggestionId).update("commentCount", FieldValue.increment(1))
-                    commentText = ""
+            Row(modifier = Modifier.padding(16.dp)) {
+                OutlinedTextField(
+                    value = commentText,
+                    onValueChange = { commentText = it },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Write a comment...") }
+                )
+                IconButton(onClick = { /* ... */ }) {
+                    Icon(Icons.Default.Send, contentDescription = "Send")
                 }
-            }) {
-                Icon(Icons.Default.Send, contentDescription = "Send", tint = Color(0xFF1976D2))
             }
         }
     }

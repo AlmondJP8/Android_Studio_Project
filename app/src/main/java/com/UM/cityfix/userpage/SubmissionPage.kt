@@ -157,7 +157,7 @@ fun submission(navController: NavHostController? = null, onSuccess: () -> Unit) 
             bitmap.compress(Bitmap.CompressFormat.JPEG, 70, out) // Smaller = Faster
             out.close()
 
-            uploadToCloudinary(Uri.fromFile(tempFile), context) { secureUrl ->
+            uploadToCloudinary(Uri.fromFile(tempFile), "Reports") { secureUrl ->
                 (context as? Activity)?.runOnUiThread {
                     if (secureUrl.isNotEmpty()) {
                         saveToFirestore(secureUrl)

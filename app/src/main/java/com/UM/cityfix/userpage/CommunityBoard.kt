@@ -1,20 +1,27 @@
 package com.UM.cityfix.userpage
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,15 +33,19 @@ import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
-import com.UM.cityfix.components.CommentSheetContent
-import com.UM.cityfix.components.Header
+import coil.compose.AsyncImage
+import com.UM.cityfix.userpage.components.CommentSheetContent
 import com.UM.cityfix.components.MainBG
-import com.UM.cityfix.components.Suggestion
-import com.UM.cityfix.components.SuggestionItem
+import com.UM.cityfix.userpage.components.Suggestion
+import com.UM.cityfix.userpage.components.SuggestionItem
 import com.UM.cityfix.ui.theme.appName
+import com.UM.cityfix.userpage.components.saveSuggestionToFirestore
+import com.UM.cityfix.userpage.components.uploadToCloudinary
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -45,11 +56,19 @@ fun CommunityBoard(navController: NavHostController? = null) {
     val db = FirebaseFirestore.getInstance()
     val auth = FirebaseAuth.getInstance()
 
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var showComments by remember { mutableStateOf(false) }
     var selectedSuggestionId by remember { mutableStateOf("") }
     var newSuggestionText by remember { mutableStateOf("") }
     val suggestions = remember { mutableStateListOf<Suggestion>() }
+    var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
+    var isUploading by remember { mutableStateOf(false) } // To show a loading state
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        selectedImageUri = uri
+    }
 
     LaunchedEffect(Unit) {
         db.collection("suggestions")
@@ -67,39 +86,94 @@ fun CommunityBoard(navController: NavHostController? = null) {
         bottomBar = { UserNavBar(navController = navController) }
     ) { innerPadding ->
         Column(Modifier.MainBG().padding(innerPadding)) {
-            Row(Modifier.Header().fillMaxWidth().padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("Community Board", style = appName)
-                Spacer(Modifier.weight(1f))
-            }
-
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
-                    OutlinedTextField(
-                        value = newSuggestionText,
-                        onValueChange = { newSuggestionText = it },
-                        placeholder = { Text("Share an idea for the city...") },
-                        modifier = Modifier.fillMaxWidth(),
-                        trailingIcon = {
-                            IconButton(onClick = {
-                                if (newSuggestionText.isNotBlank()) {
-                                    val id = db.collection("suggestions").document().id
-                                    val item = Suggestion(
-                                        id = id,
-                                        author = auth.currentUser?.email ?: "Anonymous",
-                                        content = newSuggestionText,
-                                        timestamp = System.currentTimeMillis()
-                                    )
-                                    db.collection("suggestions").document(id).set(item)
-                                    newSuggestionText = ""
+                    Row(Modifier.padding(10.dp)) {
+                        Text("Community Board", style = appName)
+                    }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 8.dp)
+                            .background(Color.White.copy(alpha = 0.05f), RoundedCornerShape(12.dp))
+                            .padding(8.dp)
+                    ) {
+                        // Image Preview (Stays on top if selected)
+                        selectedImageUri?.let { uri ->
+                            Box(modifier = Modifier.padding(bottom = 8.dp)) {
+                                AsyncImage(
+                                    model = uri,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(150.dp)
+                                        .clip(RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                                IconButton(
+                                    onClick = { selectedImageUri = null },
+                                    modifier = Modifier.align(Alignment.TopEnd)
+                                ) {
+                                    Icon(Icons.Default.Close, contentDescription = "Remove", tint = Color.White)
                                 }
-                            }) {
-                                Icon(Icons.Default.Send, contentDescription = "Post")
                             }
                         }
-                    )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // 1. The Input Box (Takes up all middle space)
+                            OutlinedTextField(
+                                value = newSuggestionText,
+                                onValueChange = { newSuggestionText = it },
+                                placeholder = { Text("Share an idea...", color = Color.Gray) },
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(15.dp),
+                                maxLines = 3,
+                                textStyle = androidx.compose.ui.text.TextStyle(color = Color.Black)
+                            )
+
+                            Spacer(modifier = Modifier.width(4.dp))
+
+                            // 2. Photo Picker Button
+                            IconButton(onClick = { launcher.launch("image/*") }) {
+                                Icon(
+                                    imageVector = Icons.Default.AddPhotoAlternate,
+                                    contentDescription = "Add Photo",
+                                    tint = if (selectedImageUri != null) Color(0xFF4191E3) else Color.Gray
+                                )
+                            }
+
+                            // 3. The Send Button
+                            IconButton(
+                                onClick = {
+                                    val authorEmail = auth.currentUser?.email ?: "Anonymous"
+
+                                    if (selectedImageUri != null) {
+                                        // Upload to Cloudinary first, then it handles Firestore
+                                        uploadToCloudinary(selectedImageUri!!, newSuggestionText, authorEmail)
+                                    } else {
+                                        // No image? Just save text directly to Firestore
+                                        saveSuggestionToFirestore(newSuggestionText, authorEmail, null)
+                                    }
+
+                                    newSuggestionText = ""
+                                    selectedImageUri = null
+                                }
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Send,
+                                    contentDescription = "Post",
+                                    tint = if (newSuggestionText.isNotBlank() || selectedImageUri != null)
+                                        Color(0xFF4191E3) else Color.Gray
+                                )
+                            }
+                        }
+                    }
                 }
 
                 items(suggestions) { item ->
@@ -119,21 +193,11 @@ fun CommunityBoard(navController: NavHostController? = null) {
     if (showComments) {
         ModalBottomSheet(
             onDismissRequest = { showComments = false },
-            sheetState = sheetState,
-            // This removes the "automatic" padding so your sheet can go edge-to-edge
-            contentWindowInsets = { WindowInsets(0, 0, 0, 0) },
+            sheetState = sheetState, // Ensure this has skipPartiallyExpanded = true
+            contentWindowInsets = { WindowInsets(0) }, // Removes the gap at the bottom
             containerColor = Color.White,
-            dragHandle = { BottomSheetDefaults.DragHandle(color = Color.LightGray) }
         ) {
-            // Apply the paddings to the first child inside the sheet
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding() // Space for the bottom system bar
-                    .imePadding()            // Magic that moves the sheet up for the keyboard
-            ) {
-                CommentSheetContent(suggestionId = selectedSuggestionId)
-            }
+            CommentSheetContent(suggestionId = selectedSuggestionId)
         }
     }
 }

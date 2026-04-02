@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
@@ -26,7 +27,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.core.view.WindowCompat
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.UM.cityfix.components.AppNav
@@ -40,12 +40,10 @@ import com.UM.cityfix.ui.theme.CityFixTheme
 import com.UM.cityfix.ui.theme.appName
 import com.UM.cityfix.ui.theme.buttonText
 import com.UM.cityfix.ui.theme.conttext
+import com.cloudinary.android.MediaManager
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
-        // THIS IS THE FIX: It allows your app to react to the keyboard height
-        WindowCompat.setDecorFitsSystemWindows(window, false)
-
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
@@ -56,6 +54,13 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+
+        val config = mapOf(
+            "cloud_name" to "dr4swrogh",
+            "api_key" to "411426767422665",
+            "api_secret" to "KWyHuFtpE1gX1eYQLcpAH0KLiPM"
+        )
+        MediaManager.init(this, config)
     }
 }
 data class TutorialStep(val text: String, val imageRes: Int)
@@ -71,14 +76,24 @@ fun Greeting(navController: NavHostController? = null, modifier: Modifier = Modi
     //the entire phone
     Column(Modifier.MainBG()) {
         //header
-        Row(Modifier.Header().fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Image(painter = painterResource(id = R.drawable.pic_logo), contentDescription = "Logo", Modifier.Logo(),)
+        Row(Modifier
+            .Header()
+            .fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Image(
+                painter = painterResource(id = R.drawable.pic_logo),
+                contentDescription = "Logo",
+                Modifier.Logo()
+            )
             Text("CITYFIX", style = appName)
 
             Spacer( Modifier.weight(1f))
 
-            Text("Login", Modifier.button().clickable{navController?.navigate("login")}, style = buttonText)
-            Text("Signup", Modifier.button().clickable{navController?.navigate("signup")}, style = buttonText)
+            Text("Login", Modifier
+                .button()
+                .clickable { navController?.navigate("login") }, style = buttonText)
+            Text("Signup", Modifier
+                .button()
+                .clickable { navController?.navigate("signup") }, style = buttonText)
         }
         //tutorial
         LazyColumn(modifier = Modifier.padding(5.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

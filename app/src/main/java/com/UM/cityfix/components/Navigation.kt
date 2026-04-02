@@ -27,6 +27,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.UM.cityfix.userpage.CommunityBoard
 import com.UM.cityfix.userpage.ProfileScreen
 import com.UM.cityfix.userpage.UserNavBar
+import com.UM.cityfix.userpage.components.CommentScreen
 import com.UM.cityfix.userpage.submission
 
 @Composable
