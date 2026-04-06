@@ -43,7 +43,7 @@ fun AppNav(navController: NavHostController) {
         composable("signup") { Signup(navController) }
 
         composable("role_check") { RoleCheckScreen(navController) }
-        composable ("usrnav") { UserNavBar(navController) }
+        composable ("usernav") { UserNavBar(navController) }
 
         composable("communitypage") { CommunityBoard(navController) }
         composable("submission") { submission(navController, onSuccess = { navController.popBackStack() }) }
@@ -70,8 +70,6 @@ fun AppNav(navController: NavHostController) {
             MapScreen(lat = lat, lng = lng, navController = navController)
         }
         composable("setting") { Settings(navController = navController) }
-
-
         composable(
             route = "issueDetail/{issueId}",
             arguments = listOf(navArgument("issueId") { type = NavType.StringType })

@@ -24,7 +24,7 @@ fun ProfileIssueItem(
     title: String,
     status: String,
     location: String,
-    imageUrl: String = "" // Added imageUrl parameter
+    imageUrl: String = "" 
 ) {
     Card(
         modifier = Modifier

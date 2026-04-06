@@ -118,7 +118,7 @@ fun Login(navController: NavHostController? = null) {
                                 }
                                 .addOnFailureListener { e ->
                                     isLoading = false
-                                    Toast.makeText(context, "Login Error: ${e.message}", Toast.LENGTH_LONG).show()
+                                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
                                 }
                         } else {
                             Toast.makeText(context, "Please enter email and password", Toast.LENGTH_SHORT).show()

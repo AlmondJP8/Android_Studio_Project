@@ -11,12 +11,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -43,19 +46,19 @@ import com.google.firebase.firestore.FirebaseFirestore
 
 @Composable
 fun Signup(navController: NavHostController? = null) {
-
     val auth = FirebaseAuth.getInstance()
     val db = FirebaseFirestore.getInstance()
     val context = LocalContext.current
 
-// States for Input Fields
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var showDialog by remember { mutableStateOf(false) }
 
-    // Success Dialog logic
+    var showDialog by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) } // NEW: Prevent double clicks
+
+    // --- DIALOG LOGIC ---
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
@@ -75,10 +78,10 @@ fun Signup(navController: NavHostController? = null) {
     }
 
     Column(
-        modifier = Modifier.MainBG().fillMaxSize(),
+        modifier = Modifier.MainBG().fillMaxSize().verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Spacer(modifier = Modifier.weight(0.1f))
+        Spacer(modifier = Modifier.height(50.dp))
 
         Image(
             painter = painterResource(id = R.drawable.pic_logo),
@@ -105,33 +108,16 @@ fun Signup(navController: NavHostController? = null) {
                 )
                 Text(text = "Create an account to continue", color = Color.Gray)
 
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Input Fields
+                OutlinedTextField(value = firstName, onValueChange = { firstName = it }, label = { Text("First Name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 Spacer(modifier = Modifier.height(12.dp))
 
-                OutlinedTextField(
-                    value = firstName,
-                    onValueChange = { firstName = it },
-                    label = { Text("First Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
+                OutlinedTextField(value = lastName, onValueChange = { lastName = it }, label = { Text("Last Name") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 Spacer(modifier = Modifier.height(12.dp))
 
-                OutlinedTextField(
-                    value = lastName,
-                    onValueChange = { lastName = it },
-                    label = { Text("Last Name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                OutlinedTextField(
-                    value = email,
-                    onValueChange = { email = it },
-                    label = { Text("Email") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
+                OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") }, modifier = Modifier.fillMaxWidth(), singleLine = true)
                 Spacer(modifier = Modifier.height(12.dp))
 
                 OutlinedTextField(
@@ -139,56 +125,77 @@ fun Signup(navController: NavHostController? = null) {
                     onValueChange = { password = it },
                     label = { Text("Password") },
                     modifier = Modifier.fillMaxWidth(),
-                    visualTransformation = PasswordVisualTransformation()
+                    visualTransformation = PasswordVisualTransformation(),
+                    singleLine = true
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                // SIGN UP BUTTON
                 Button(
                     onClick = {
                         val trimmedEmail = email.trim()
                         val trimmedPassword = password.trim()
 
-                        if (trimmedEmail.isNotEmpty() && trimmedPassword.isNotEmpty()) {
-                            // 1. Create User in Firebase Auth
-                            auth.createUserWithEmailAndPassword(trimmedEmail, trimmedPassword)
-                                .addOnSuccessListener { result ->
-                                    val userId = result.user?.uid
-
-                                    // 2. Prepare user data for Firestore
-                                    val userMap = hashMapOf(
-                                        "firstName" to firstName,
-                                        "lastName" to lastName,
-                                        "email" to trimmedEmail,
-                                        "createdAt" to System.currentTimeMillis(),
-                                        "role" to "user"
-                                    )
-
-                                    // 3. Save to "users" collection
-                                    if (userId != null) {
-                                        db.collection("users").document(userId)
-                                            .set(userMap)
-                                            .addOnSuccessListener {
-                                                showDialog = true
-                                            }
-                                            .addOnFailureListener { e ->
-                                                Toast.makeText(context, "Firestore Error: ${e.message}", Toast.LENGTH_LONG).show()
-                                            }
-                                    }
-                                }
-                                .addOnFailureListener { e ->
-                                    Toast.makeText(context, "Auth Error: ${e.message}", Toast.LENGTH_LONG).show()
-                                }
-                        } else {
+                        // Basic Validation
+                        if (firstName.isBlank() || lastName.isBlank() || trimmedEmail.isBlank() || trimmedPassword.isBlank()) {
                             Toast.makeText(context, "Please fill in all fields", Toast.LENGTH_SHORT).show()
+                            return@Button
                         }
+
+                        if (trimmedPassword.length < 6) {
+                            Toast.makeText(context, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+
+                        isLoading = true // Start Loading
+
+                        // 1. Create User in Auth
+                        auth.createUserWithEmailAndPassword(trimmedEmail, trimmedPassword)
+                            .addOnSuccessListener { result ->
+                                val userId = result.user?.uid ?: ""
+
+                                // 2. Prepare Data
+                                val userMap = hashMapOf(
+                                    "userId" to userId,
+                                    "firstName" to firstName.trim(),
+                                    "lastName" to lastName.trim(),
+                                    "email" to trimmedEmail,
+                                    "role" to "user", // Default role
+                                    "profilePicture" to "",
+                                    "createdAt" to com.google.firebase.Timestamp.now()
+                                )
+
+                                // 3. Save to Firestore
+                                db.collection("users").document(userId)
+                                    .set(userMap)
+                                    .addOnSuccessListener {
+                                        isLoading = false
+                                        showDialog = true
+                                    }
+                                    .addOnFailureListener { e ->
+                                        isLoading = false
+                                        Toast.makeText(context, "Save Error: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                                    }
+                            }
+                            .addOnFailureListener { e ->
+                                isLoading = false
+                                Toast.makeText(context, "Sign Up Failed: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                            }
                     },
-                    modifier = Modifier.fillMaxWidth().height(50.dp),
+                    modifier = Modifier.fillMaxWidth().height(55.dp),
+                    enabled = !isLoading, // Disable while working
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1976D2))
-                ) { Text("Sign Up", fontWeight = FontWeight.Bold, color = Color.White) }
+                ) {
+                    if (isLoading) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Sign Up", fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+                }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 Row {
                     Text("Already have an Account? ")
@@ -201,6 +208,6 @@ fun Signup(navController: NavHostController? = null) {
                 }
             }
         }
-        Spacer(modifier = Modifier.weight(0.1f))
+        Spacer(modifier = Modifier.height(50.dp))
     }
 }

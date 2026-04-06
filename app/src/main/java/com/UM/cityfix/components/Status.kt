@@ -26,6 +26,7 @@ fun StatusBadge(status: String) {
         "Pending" -> Color(0xFFFFB74D) to "PENDING"
         "Ongoing" -> Color(0xFF1976D2) to "ONGOING"
         "Resolved" -> Color(0xFF81C784) to "FIXED"
+        "Blocked" -> Color(0xFFD32F2F) to "BLOCKED"
         else -> Color.Gray to "UNKNOWN"
     }
 

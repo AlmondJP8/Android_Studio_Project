@@ -120,33 +120,6 @@ fun IssueTabTemplate(issues: List<IssueItem>, navController: NavController?, tot
 }
 
 @Composable
-fun DashboardStatCard(label: String, count: String, color: Color, modifier: Modifier) {
-    ElevatedCard(
-        modifier = modifier,
-        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally // Centers the data
-        ) {
-            Text(
-                text = count,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Black,
-                color = color
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.Gray,
-                maxLines = 1
-            )
-        }
-    }
-}
-
-@Composable
 fun StatCard(text: String, modifier: Modifier = Modifier) {
     ElevatedCard(
         modifier = modifier,
@@ -178,7 +151,7 @@ fun IssueCard(item: IssueItem, onClick: () -> Unit) {
         Column(modifier = Modifier.padding(16.dp)) {
             // Title
             Text(
-                text = if (item.title.isNullOrBlank()) "No Title" else item.title!!,
+                text = if (item.title.isNullOrBlank()) "No Title" else item.title,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.ExtraBold,
                 color = MaterialTheme.colorScheme.onSurface,
@@ -187,7 +160,7 @@ fun IssueCard(item: IssueItem, onClick: () -> Unit) {
 
             Spacer(modifier = Modifier.height(5.dp))
 
-            // User Name Row (Fixed Syntax)
+            // UserName Row (Fixed Syntax)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.Person,
@@ -318,7 +291,7 @@ fun IssueDetails(id: String, navController: NavController) {
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(15.dp))
 
                 ElevatedCard(
                     modifier = Modifier.fillMaxWidth(),
@@ -333,7 +306,7 @@ fun IssueDetails(id: String, navController: NavController) {
                             fontWeight = FontWeight.Bold
                         )
 
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
 
                         // Inside IssueDetails Column, below the Title
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -395,7 +368,7 @@ fun IssueDetails(id: String, navController: NavController) {
                             Text(text = formatTimestamp(item.timestamp), style = MaterialTheme.typography.bodyMedium, color = Color.Gray)
                         }
 
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp), thickness = 0.5.dp)
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 15.dp), thickness = 0.5.dp)
 
                         Text(
                             text = "Description",
@@ -409,6 +382,7 @@ fun IssueDetails(id: String, navController: NavController) {
                             lineHeight = 24.sp
                         )
                     }
+
                     HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
                     Column(modifier = Modifier.padding(20.dp)) {
                         Text(
@@ -429,7 +403,7 @@ fun IssueDetails(id: String, navController: NavController) {
                                     "Resolved" -> Color(0xFF388E3C) // Green
                                     "Ongoing" -> Color(0xFF1976D2)  // Blue
                                     "Blocked" -> Color(0xFFD32F2F)  // Red
-                                    else -> Color(0xFF757575)       // Grey for Pending
+                                    else -> Color(0xFF757575)       // Gray for Pending
                                 }
 
                                 FilterChip(
@@ -447,7 +421,7 @@ fun IssueDetails(id: String, navController: NavController) {
                             }
                         }
 
-                        HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 10.dp))
 
                         Text(
                             text = "Set Urgency",
