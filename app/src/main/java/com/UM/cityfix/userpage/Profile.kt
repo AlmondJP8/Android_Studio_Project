@@ -220,8 +220,9 @@ fun ProfileScreen(navController: NavHostController) {
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column {
+                    // Change this in your ProfileScreen
                     ProfileMenuItem(Icons.Default.History, "My Report History") {
-                        coroutineScope.launch { scrollState.animateScrollTo(scrollState.maxValue) }
+                        navController.navigate("my_reports") // Create this route in your NavHost
                     }
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
                     ProfileMenuItem(Icons.AutoMirrored.Filled.ExitToApp, "Logout", tint = Color.Red) {

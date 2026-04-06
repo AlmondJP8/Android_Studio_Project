@@ -51,21 +51,24 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.IgnoreExtraProperties
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
 //Data Class
+@IgnoreExtraProperties
 data class IssueItem(
     val id: String = "",
     val userId: String = "",
     val authorName: String = "",
     val authorEmail: String = "",
-    val title: String? = "",
-    val description: String = "",
+    val title: String = "No Title",
+    val description: String = "No Description",
     val locationName: String = "",
     val status: String = "Pending",
-    val timestamp: Long = 0L,
+    // CHANGE THIS: Use ServerTimestamp or Date
+    val timestamp: Date? = null,
     val urgency: String = "Medium",
     val imageUrl: String = "",
     val category: String = "",
@@ -73,10 +76,9 @@ data class IssueItem(
     val longitude: Double = 0.0
 )
 
-fun formatTimestamp(milliseconds: Long): String {
-    if (milliseconds == 0L) return "Pending..."
+fun formatTimestamp(date: Date?): String {
+    if (date == null) return "Pending..."
     val sdf = SimpleDateFormat("MMM dd, yyyy - hh:mm a", Locale.getDefault())
-    val date = Date(milliseconds)
     return sdf.format(date)
 }
 
@@ -259,7 +261,7 @@ fun IssueDetails(id: String, navController: NavController) {
                     status = doc.getString("status") ?: "Pending",
                     urgency = doc.getString("urgency") ?: "Normal",
                     imageUrl = doc.getString("imageUrl") ?: "",
-                    timestamp = doc.getTimestamp("timestamp")?.toDate()?.time ?: 0L,
+                    timestamp = doc.getTimestamp("timestamp")?.toDate(),
                     latitude = doc.getDouble("latitude") ?: 0.0,
                     longitude = doc.getDouble("longitude") ?: 0.0
                 )

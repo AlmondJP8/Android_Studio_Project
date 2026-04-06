@@ -72,7 +72,7 @@ fun submission(navController: NavHostController? = null, onSuccess: () -> Unit) 
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var isSubmitting by remember { mutableStateOf(false) }
 
-    val categories = listOf("Hazards", "Water", "Power Lines", "Roads", "Waste", "Street  Lights", "Trees")
+    val categories = listOf("Hazards", "Water", "Power Lines", "Roads", "Waste", "Street Lights", "Trees")
 
     // --- NEW: Helper to convert Camera Bitmap to Uri ---
     fun bitmapToUri(bitmap: Bitmap): Uri {

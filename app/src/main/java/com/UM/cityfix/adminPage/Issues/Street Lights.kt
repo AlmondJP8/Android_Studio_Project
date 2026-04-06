@@ -30,23 +30,26 @@ fun StreetLights(navController: NavController?) {
             }
 
         // Listen to "Issues" collection
+        // ... inside StreetLights Composable ...
         db.collection("Issues")
             .whereEqualTo("category", "Street Lights")
             .addSnapshotListener { value, error ->
                 if (error == null && value != null) {
                     StreetLightsData = value.documents.map { doc ->
                         val rawName = doc.getString("authorName")
-                        // IMPORTANT: We use doc.id so we can navigate to the specific report
                         IssueItem(
                             id = doc.id,
                             title = doc.getString("title") ?: "No Title",
-                            authorName = if (rawName.isNullOrEmpty()) "DB_FIELD_MISSING" else rawName,
+                            authorName = rawName ?: "Anonymous",
                             description = doc.getString("description") ?: "No Description",
                             locationName = doc.getString("locationName") ?: "Unknown Location",
                             status = doc.getString("status") ?: "Pending",
                             urgency = doc.getString("urgency") ?: "Normal",
-                            timestamp = doc.getTimestamp("timestamp")?.toDate()?.time ?: 0L,
-                            imageUrl = doc.getString("imageUrl") ?: ""
+                            timestamp = doc.getTimestamp("timestamp")?.toDate(),
+                            imageUrl = doc.getString("imageUrl") ?: "",
+                            // --- MISSING FIELDS ADDED HERE ---
+                            latitude = doc.getDouble("latitude") ?: 0.0,
+                            longitude = doc.getDouble("longitude") ?: 0.0
                         )
                     }
                 }
@@ -61,7 +64,8 @@ fun StreetLights(navController: NavController?) {
                 .set(mapOf("viewstats" to now), SetOptions.merge())
         }
     }
-    val newIssuesCount = StreetLightsData.count { it.timestamp > lastCheckTime }
+    // We use ?.time to get the Long value, and ?: 0L to handle nulls
+    val newIssuesCount = StreetLightsData.count { (it.timestamp?.time ?: 0L) > lastCheckTime }
 
     Scaffold(
         topBar = { AdminHeader(title = "Street Lights Reports", navController = navController, onBackClick = { navController?.popBackStack() }) }

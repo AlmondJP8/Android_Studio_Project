@@ -44,8 +44,10 @@ fun Power(navController: NavController?) {
                             locationName = doc.getString("locationName") ?: "Unknown Location",
                             status = doc.getString("status") ?: "Pending",
                             urgency = doc.getString("urgency") ?: "Normal",
-                            timestamp = doc.getTimestamp("timestamp")?.toDate()?.time ?: 0L,
-                            imageUrl = doc.getString("imageUrl") ?: ""
+                            timestamp = doc.getTimestamp("timestamp")?.toDate(),
+                            imageUrl = doc.getString("imageUrl") ?: "",
+                            latitude = doc.getDouble("latitude") ?: 0.0,
+                            longitude = doc.getDouble("longitude") ?: 0.0
                         )
                     }
                 }
@@ -60,7 +62,8 @@ fun Power(navController: NavController?) {
                 .set(mapOf("viewstats" to now), SetOptions.merge())
         }
     }
-    val newIssuesCount = PowerData.count { it.timestamp > lastCheckTime }
+    // We use ?.time to get the Long value, and ?: 0L to handle nulls
+    val newIssuesCount = PowerData.count { (it.timestamp?.time ?: 0L) > lastCheckTime }
 
     Scaffold(
         topBar = { AdminHeader(title = "PowerLine Reports", navController = navController, onBackClick = { navController?.popBackStack() }) }

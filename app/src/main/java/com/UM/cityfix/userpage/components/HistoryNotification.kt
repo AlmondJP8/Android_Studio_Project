@@ -77,9 +77,11 @@ fun ProfileIssueItem(
 
             // 3. Dynamic Status Label
             val (backgroundColor, textColor) = when (status.lowercase()) {
-                "resolved" -> Color(0xFFE3F2FD) to Color(0xFF1976D2) // Blue
-                "pending" -> Color(0xFFFFF3E0) to Color(0xFFE65100)  // Orange
-                else -> Color(0xFFF5F5F5) to Color(0xFF757575)       // Gray
+                "pending" -> Color(0xFFFFF3E0) to Color(0xFFFFB74D)
+                "ongoing" -> Color(0xFFFFF3E0) to Color(0xFF1976D2)
+                "resolved" -> Color(0xFFFFF3E0) to Color(0xFF81C784)
+                "blocked" -> Color(0xFFFFF3E0) to Color(0xFFD32F2F)
+                else -> Color(0xFFFFF3E0) to Color(0xFF757575)
             }
 
             Surface(

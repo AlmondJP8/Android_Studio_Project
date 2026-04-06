@@ -28,6 +28,8 @@ import com.UM.cityfix.userpage.CommunityBoard
 import com.UM.cityfix.userpage.ProfileScreen
 import com.UM.cityfix.userpage.UserNavBar
 import com.UM.cityfix.userpage.components.CommentScreen
+import com.UM.cityfix.userpage.components.EditReportScreen
+import com.UM.cityfix.userpage.components.MyReportsScreen
 import com.UM.cityfix.userpage.submission
 
 @Composable
@@ -57,6 +59,16 @@ fun AppNav(navController: NavHostController) {
             )
         }
         composable("profile") { ProfileScreen(navController = navController) }
+        composable("my_reports") { MyReportsScreen(navController) }
+
+        // Use arguments to pass the ID to the editor
+        composable(
+            "edit_report/{issueId}",
+            arguments = listOf(navArgument("issueId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val id = backStackEntry.arguments?.getString("issueId") ?: ""
+            EditReportScreen(navController, id)
+        }
 
         composable("comments/{suggestionId}", arguments = listOf(navArgument("suggestionId")
         { type = NavType.StringType })) { backStackEntry ->
@@ -78,6 +90,7 @@ fun AppNav(navController: NavHostController) {
             val lng = backStackEntry.arguments?.getString("lng")?.toDoubleOrNull() ?: 0.0
             MapScreen(lat = lat, lng = lng, navController = navController)
         }
+
         composable("setting") { Settings(navController = navController) }
         composable(
             route = "issueDetail/{issueId}",
