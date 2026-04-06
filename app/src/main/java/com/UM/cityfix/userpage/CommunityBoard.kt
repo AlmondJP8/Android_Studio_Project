@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -62,7 +63,7 @@ fun CommunityBoard(navController: NavHostController? = null) {
     var newSuggestionText by remember { mutableStateOf("") }
     val suggestions = remember { mutableStateListOf<Suggestion>() }
     var selectedImageUri by remember { mutableStateOf<Uri?>(null) }
-    var isUploading by remember { mutableStateOf(false) } // To show a loading state
+//    var isUploading by remember { mutableStateOf(false) } // To show a loading state
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -86,14 +87,13 @@ fun CommunityBoard(navController: NavHostController? = null) {
         bottomBar = { UserNavBar(navController = navController) }
     ) { innerPadding ->
         Column(Modifier.MainBG().padding(innerPadding)) {
+            Text("DashBoard", Modifier.padding(start = 15.dp), style = MaterialTheme.typography.headlineMedium)
+
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
-                    Row(Modifier.padding(10.dp)) {
-                        Text("Community Board", style = appName)
-                    }
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()

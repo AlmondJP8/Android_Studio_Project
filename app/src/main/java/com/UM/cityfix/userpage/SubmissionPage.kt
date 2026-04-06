@@ -249,8 +249,8 @@ fun submission(navController: NavHostController? = null, onSuccess: () -> Unit) 
             modifier = Modifier.padding(innerPadding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)
         ) {
 
-            Text("Report an Urban Issue", style = MaterialTheme.typography.headlineMedium)
-            Spacer(modifier = Modifier.height(25.dp))
+            Text("Report an Issue", Modifier.padding(start = 10.dp), style = MaterialTheme.typography.headlineMedium)
+            Spacer(modifier = Modifier.height(15.dp))
 
             // Text Inputs
             OutlinedTextField(value = title, onValueChange = { title = it }, label = { Text("Issue Title") }, modifier = Modifier.fillMaxWidth())

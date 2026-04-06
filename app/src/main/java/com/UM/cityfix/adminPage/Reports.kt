@@ -50,7 +50,7 @@ data class DashboardItem(
     val iconRes: Int,
     val route: String,
     val color: Color,
-    val isBadgeVisible: Boolean = false // Default to off
+    val isBadgeVisible: Boolean = false
 )
 
 @Composable
@@ -105,6 +105,7 @@ fun ReportsPage(navController: NavController?) {
         {
             Text(
                 text = "Reports",
+                Modifier.padding(20.dp),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )
