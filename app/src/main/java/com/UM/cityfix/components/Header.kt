@@ -15,7 +15,7 @@ import com.UM.cityfix.ui.theme.appName
 
 @Composable
 fun AdminHeader(
-    title: String = "Admin Control Panel",
+    title: String,
     navController: NavController? = null,
     modifier: Modifier = Modifier,
     onBackClick: (() -> Unit)? = null

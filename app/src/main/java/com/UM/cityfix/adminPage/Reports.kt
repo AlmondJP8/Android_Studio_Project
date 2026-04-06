@@ -19,6 +19,7 @@ import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -32,13 +33,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.UM.cityfix.R
-import com.UM.cityfix.components.AdminHeader
 import com.UM.cityfix.components.GridConfig2
 import com.UM.cityfix.components.MainBG
 import com.UM.cityfix.ui.theme.gridText
@@ -102,7 +103,11 @@ fun ReportsPage(navController: NavController?) {
     ) { innerPadding ->
         Column(modifier = Modifier.MainBG().fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally)
         {
-            AdminHeader()
+            Text(
+                text = "Reports",
+                style = MaterialTheme.typography.headlineSmall,
+                fontWeight = FontWeight.Bold
+            )
             Column(
                 modifier = Modifier
                     .padding(bottom = innerPadding.calculateBottomPadding()) // Respect the bottom bar

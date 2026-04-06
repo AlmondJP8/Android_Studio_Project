@@ -34,10 +34,12 @@ fun Hazards(navController: NavController?) {
             .addSnapshotListener { value, error ->
                 if (error == null && value != null) {
                     hazardData = value.documents.map { doc ->
+                        val rawName = doc.getString("authorName")
                         // IMPORTANT: We use doc.id so we can navigate to the specific report
                         IssueItem(
                             id = doc.id,
                             title = doc.getString("title") ?: "No Title",
+                            authorName = if (rawName.isNullOrEmpty()) "DB_FIELD_MISSING" else rawName,
                             description = doc.getString("description") ?: "No Description",
                             locationName = doc.getString("locationName") ?: "Unknown Location",
                             status = doc.getString("status") ?: "Pending",

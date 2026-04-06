@@ -2,6 +2,7 @@ package com.UM.cityfix.components
 
 import android.widget.Toast
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -24,6 +25,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -49,7 +51,6 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.tasks.await
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -58,6 +59,8 @@ import java.util.Locale
 data class IssueItem(
     val id: String = "",
     val userId: String = "",
+    val authorName: String = "",
+    val authorEmail: String = "",
     val title: String? = "",
     val description: String = "",
     val locationName: String = "",
@@ -78,12 +81,8 @@ fun formatTimestamp(milliseconds: Long): String {
 }
 
 @Composable
-fun IssueTabTemplate(
-    issues: List<IssueItem>,
-    navController: NavController?,
-    totalCount: Int,
-    newCount: Int
-) {
+fun IssueTabTemplate(issues: List<IssueItem>, navController: NavController?, totalCount: Int, newCount: Int)
+{
     var selectedFilter by remember { mutableStateOf("All") }
 
     Column {
@@ -121,6 +120,33 @@ fun IssueTabTemplate(
 }
 
 @Composable
+fun DashboardStatCard(label: String, count: String, color: Color, modifier: Modifier) {
+    ElevatedCard(
+        modifier = modifier,
+        colors = CardDefaults.elevatedCardColors(containerColor = Color.White),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally // Centers the data
+        ) {
+            Text(
+                text = count,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Black,
+                color = color
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall,
+                color = Color.Gray,
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
 fun StatCard(text: String, modifier: Modifier = Modifier) {
     ElevatedCard(
         modifier = modifier,
@@ -136,43 +162,14 @@ fun StatCard(text: String, modifier: Modifier = Modifier) {
     }
 }
 
-// Function to fetch name from the "users" collection
-suspend fun getUserName(userId: String): String {
-    if (userId.isEmpty()) return "Anonymous"
-    return try {
-        val document = FirebaseFirestore.getInstance()
-            .collection("users")
-            .document(userId)
-            .get()
-            .await()
-
-        document.getString("name") ?: "Unknown User"
-    } catch (e: Exception) {
-        "Error loading name"
-    }
-}
-
 @Composable
 fun IssueCard(item: IssueItem, onClick: () -> Unit) {
-    // State to hold the fetched name
-    var userName by remember { mutableStateOf("Loading...") }
-
-    // Fetch user name based on userId when card is displayed
-    LaunchedEffect(item.userId) {
-        if (item.userId.isNotEmpty()) {
-            userName = getUserName(item.userId)
-        } else {
-            userName = "No ID Found"
-        }
-    }
-
     val urgencyColor = when (item.urgency) {
         "Urgent" -> Color(0xFFD32F2F)
         "High" -> Color(0xFFFF9800)
         "Medium" -> Color(0xFFFBC02D)
         else -> Color.Gray
     }
-
     ElevatedCard(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
         shape = RoundedCornerShape(16.dp),
@@ -188,17 +185,19 @@ fun IssueCard(item: IssueItem, onClick: () -> Unit) {
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // User Name Row (Newly added for Admin)
+            Spacer(modifier = Modifier.height(5.dp))
+
+            // User Name Row (Fixed Syntax)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(
                     imageVector = Icons.Default.Person,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = MaterialTheme.colorScheme.primary // Makes the person icon blue
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = userName,
+                    text = item.authorName.ifEmpty { "" }, // FIXED HERE
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary
@@ -207,7 +206,7 @@ fun IssueCard(item: IssueItem, onClick: () -> Unit) {
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Description (1-line limit) and Status Badge
+            // Description and Status
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -217,11 +216,10 @@ fun IssueCard(item: IssueItem, onClick: () -> Unit) {
                     text = item.description,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.weight(1f),
-                    maxLines = 1, // Restrict to one line
-                    overflow = TextOverflow.Ellipsis // Add three dots
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                // Note: Ensure StatusBadge component exists in your project
                 StatusBadge(item.status)
             }
 
@@ -253,18 +251,21 @@ fun IssueCard(item: IssueItem, onClick: () -> Unit) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun IssueDetails(id: String, navController: NavController) {
     val context = LocalContext.current
     val db = FirebaseFirestore.getInstance()
     var issue by remember { mutableStateOf<IssueItem?>(null) }
     var selectedUrgency by remember { mutableStateOf("") }
+    var selectedStatus by remember { mutableStateOf("") } // NEW STATE
 
-    fun updateUrgency(newUrgency: String) {
+    // --- HELPER FUNCTIONS ---
+    fun updateField(fieldName: String, newValue: String) {
         db.collection("Issues").document(id)
-            .update("urgency", newUrgency)
+            .update(fieldName, newValue)
             .addOnSuccessListener {
-                Toast.makeText(context, "Urgency updated to $newUrgency", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "$fieldName updated to $newValue", Toast.LENGTH_SHORT).show()
             }
             .addOnFailureListener {
                 Toast.makeText(context, "Update failed", Toast.LENGTH_SHORT).show()
@@ -276,7 +277,9 @@ fun IssueDetails(id: String, navController: NavController) {
             if (doc.exists()) {
                 val item = IssueItem(
                     id = doc.id,
-                    userId = doc.getString("userId") ?: "", // Mapping userId here
+                    userId = doc.getString("userId") ?: "",
+                    authorName = doc.getString("authorName") ?: "Anonymous Citizen",
+                    authorEmail = doc.getString("authorEmail") ?: "No Email",
                     title = doc.getString("title") ?: "No Title",
                     description = doc.getString("description") ?: "No Description",
                     locationName = doc.getString("locationName") ?: "Unknown Location",
@@ -289,6 +292,7 @@ fun IssueDetails(id: String, navController: NavController) {
                 )
                 issue = item
                 selectedUrgency = item.urgency
+                selectedStatus = item.status // Initialize status state
             }
         }
     }
@@ -330,6 +334,25 @@ fun IssueDetails(id: String, navController: NavController) {
                         )
 
                         Spacer(modifier = Modifier.height(12.dp))
+
+                        // Inside IssueDetails Column, below the Title
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Person, contentDescription = null, tint = Color.Gray)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Column {
+                                Text(text = item.authorName, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.Bold)
+                                Text(text = item.authorEmail, style = MaterialTheme.typography.labelSmall, color = Color.Gray)
+                            }
+                        }
+
+                        HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
+
+                        Text(
+                            text = "Update Status",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
 
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -386,8 +409,44 @@ fun IssueDetails(id: String, navController: NavController) {
                             lineHeight = 24.sp
                         )
                     }
-
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
                     Column(modifier = Modifier.padding(20.dp)) {
+                        Text(
+                            text = "Update Status",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+
+                        val statusLevels = listOf("Pending", "Ongoing", "Resolved", "Blocked")
+                        Row(
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            statusLevels.forEach { status ->
+                                val isSelected = selectedStatus == status
+                                val statusColor = when (status) {
+                                    "Resolved" -> Color(0xFF388E3C) // Green
+                                    "Ongoing" -> Color(0xFF1976D2)  // Blue
+                                    "Blocked" -> Color(0xFFD32F2F)  // Red
+                                    else -> Color(0xFF757575)       // Grey for Pending
+                                }
+
+                                FilterChip(
+                                    selected = isSelected,
+                                    onClick = {
+                                        selectedStatus = status
+                                        updateField("status", status)
+                                    },
+                                    label = { Text(status) },
+                                    colors = FilterChipDefaults.filterChipColors(
+                                        selectedContainerColor = statusColor,
+                                        selectedLabelColor = Color.White
+                                    )
+                                )
+                            }
+                        }
+
                         HorizontalDivider(modifier = Modifier.padding(vertical = 16.dp))
 
                         Text(
@@ -414,7 +473,7 @@ fun IssueDetails(id: String, navController: NavController) {
                                     selected = isSelected,
                                     onClick = {
                                         selectedUrgency = level
-                                        updateUrgency(level)
+                                        updateField("urgency", level)
                                     },
                                     label = { Text(level) },
                                     colors = FilterChipDefaults.filterChipColors(

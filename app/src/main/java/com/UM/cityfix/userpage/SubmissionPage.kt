@@ -45,6 +45,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import java.io.File
 import java.io.FileOutputStream
 import android.graphics.Bitmap
+import android.util.Log
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.launch
 import androidx.compose.ui.graphics.Color
@@ -67,6 +68,7 @@ fun submission(navController: NavHostController? = null, onSuccess: () -> Unit) 
     var description by remember { mutableStateOf("") }
     var locationNameInput by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("") }
+    var currentUserName by remember { mutableStateOf("Anonymous Citizen") }
     var imageUri by remember { mutableStateOf<Uri?>(null) }
     var isSubmitting by remember { mutableStateOf(false) }
 
@@ -105,38 +107,67 @@ fun submission(navController: NavHostController? = null, onSuccess: () -> Unit) 
         permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.CAMERA))
     }
 
+    LaunchedEffect(Unit) {
+        val uid = FirebaseAuth.getInstance().currentUser?.uid
+        if (uid != null) {
+            db.collection("users").document(uid).get()
+                .addOnSuccessListener { document ->
+                    if (document != null && document.exists()) {
+                        val firstName = document.getString("firstName") ?: ""
+                        val lastName = document.getString("lastName") ?: ""
+                        currentUserName = "$firstName $lastName".trim()
+                    }
+                }
+        }
+        // Also keep your permission launcher call here
+        permissionLauncher.launch(arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.CAMERA))
+    }
+
     // --- Submission Logic ---
     @SuppressLint("MissingPermission")
     fun saveToFirestore(imageUrl: String) {
-        // Fetch location before final save
+        // 1. Get the current Auth user
+        val currentUser = FirebaseAuth.getInstance().currentUser
+
+        // 2. Fetch the last known location
         fusedLocationClient.lastLocation.addOnSuccessListener { location ->
             val lat = location?.latitude ?: 0.0
             val lng = location?.longitude ?: 0.0
 
+            // 3. Prepare the data map
             val report = hashMapOf(
-                "title" to title,
-                "description" to description,
-                "locationName" to locationNameInput,
+                "title" to title.trim(),
+                "description" to description.trim(),
+                "locationName" to locationNameInput.trim(),
                 "category" to selectedCategory,
                 "imageUrl" to imageUrl,
                 "latitude" to lat,
                 "longitude" to lng,
                 "status" to "Pending",
-                "timestamp" to com.google.firebase.Timestamp.now(),
-                "userId" to FirebaseAuth.getInstance().currentUser?.uid
+                "timestamp" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                "userId" to currentUser?.uid,
+                "authorName" to currentUserName,
+                "authorEmail" to (currentUser?.email ?: "No Email")
             )
 
-            // UPDATED: Path changed to "Issues"
-            db.collection("Issues").add(report)
+            // 4. Save to the "Issues" collection
+            db.collection("Issues")
+                .add(report)
                 .addOnSuccessListener {
                     isSubmitting = false
                     Toast.makeText(context, "Issue Reported Successfully!", Toast.LENGTH_SHORT).show()
+
+                    // Reset form or navigate back
                     onSuccess()
                 }
-                .addOnFailureListener {
+                .addOnFailureListener { e ->
                     isSubmitting = false
-                    Toast.makeText(context, "Firestore Error: ${it.message}", Toast.LENGTH_SHORT).show()
+                    Log.e("FirestoreError", "Error adding document", e)
+                    Toast.makeText(context, "Submission failed: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
                 }
+        }.addOnFailureListener { e ->
+            isSubmitting = false
+            Toast.makeText(context, "Could not retrieve location", Toast.LENGTH_SHORT).show()
         }
     }
 

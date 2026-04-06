@@ -29,7 +29,7 @@ fun IssueSorterBar(
     selectedCategory: String,
     onCategorySelected: (String) -> Unit
 ) {
-    val categories = listOf("All", "Pending", "Ongoing", "Resolved", "Blocked", "Critical")
+    val categories = listOf("All", "Pending", "Ongoing", "Resolved", "Blocked")
 
     LazyRow(
         modifier = Modifier

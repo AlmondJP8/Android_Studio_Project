@@ -34,10 +34,12 @@ fun Waste(navController: NavController?) {
             .addSnapshotListener { value, error ->
                 if (error == null && value != null) {
                     WasteData = value.documents.map { doc ->
+                        val rawName = doc.getString("authorName")
                         // IMPORTANT: We use doc.id so we can navigate to the specific report
                         IssueItem(
                             id = doc.id,
                             title = doc.getString("title") ?: "No Title",
+                            authorName = if (rawName.isNullOrEmpty()) "DB_FIELD_MISSING" else rawName,
                             description = doc.getString("description") ?: "No Description",
                             locationName = doc.getString("locationName") ?: "Unknown Location",
                             status = doc.getString("status") ?: "Pending",
@@ -61,7 +63,7 @@ fun Waste(navController: NavController?) {
     val newIssuesCount = WasteData.count { it.timestamp > lastCheckTime }
 
     Scaffold(
-        topBar = { AdminHeader(title = "Hazard Reports", navController = navController, onBackClick = { navController?.popBackStack() }) }
+        topBar = { AdminHeader(title = "Waste Reports", navController = navController, onBackClick = { navController?.popBackStack() }) }
     ) { paddingValues ->
         Column(
             modifier = Modifier

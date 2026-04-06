@@ -167,7 +167,7 @@ fun ProfileScreen(navController: NavHostController) {
         ) {
             // HEADER SECTION
             Box(
-                modifier = Modifier.fillMaxWidth().height(230.dp).background(Color(0xFF1976D2)),
+                modifier = Modifier.fillMaxWidth().height(230.dp).background(Color(0xFF19212C)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {

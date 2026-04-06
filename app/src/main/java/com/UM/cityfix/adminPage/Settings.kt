@@ -24,17 +24,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import kotlinx.coroutines.launch
 import com.UM.cityfix.R
 import com.UM.cityfix.components.uploadToCloudinary
-import com.UM.cityfix.userpage.components.ProfileIssueItem
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.yalantis.ucrop.UCrop
@@ -52,50 +49,45 @@ fun Settings(navController: NavHostController) {
 
     // State variables
     var profileImageUrl by remember { mutableStateOf("") }
-    var reportCount by remember { mutableIntStateOf(0) }
-    var userName by remember { mutableStateOf("City Fixer") }
+    var globalReportCount by remember { mutableIntStateOf(0) } // Admin sees total reports
+    var globalResolvedCount by remember { mutableIntStateOf(0) } // Admin sees total fixed
+    var adminName by remember { mutableStateOf("Admin User") }
     var isUploading by remember { mutableStateOf(false) }
 
-    var userIssues by remember { mutableStateOf<List<Map<String, Any>>>(emptyList()) }
-    val resolvedCount = userIssues.count { it["status"]?.toString()?.lowercase() == "resolved" }
-
-    // Fetch User Data on Load
+    // Fetch Admin Data & System Stats
     LaunchedEffect(userId) {
         if (userId == null) return@LaunchedEffect
 
-        // 1. Fetch User Profile Info (Real-time)
+        // 1. Fetch Admin Profile Info
         db.collection("users").document(userId).addSnapshotListener { snapshot, _ ->
             if (snapshot != null && snapshot.exists()) {
                 val fName = snapshot.getString("firstName") ?: ""
                 val lName = snapshot.getString("lastName") ?: ""
-                if (fName.isNotEmpty()) userName = "$fName $lName"
+                adminName = if (fName.isNotEmpty()) "$fName $lName" else "System Admin"
                 profileImageUrl = snapshot.getString("profilePicture") ?: ""
             }
         }
 
-        // 2. Fetch Reports (Using lowercase "issues" to match your submission fix)
-        db.collection("Issues")
-            .whereEqualTo("userId", userId)
-            .addSnapshotListener { result, e ->
-                if (result != null) {
-                    reportCount = result.size()
-                    userIssues = result.documents.mapNotNull { it.data }
+        // 2. Fetch System-Wide Stats (Total vs Resolved)
+        db.collection("Issues").addSnapshotListener { result, _ ->
+            if (result != null) {
+                globalReportCount = result.size()
+                globalResolvedCount = result.documents.count {
+                    it.getString("status")?.lowercase() == "resolved"
                 }
             }
+        }
     }
-
-    // 1. UPDATED Launcher for the Crop Result
+    // 1. Launcher to handle the final Crop Result
     val cropLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
             val resultUri = UCrop.getOutput(result.data!!)
             resultUri?.let { cropped ->
                 isUploading = true
 
-                // --- LOCAL COMPRESSION (Prevents Lag) ---
+                // Compression logic
                 val inputStream = context.contentResolver.openInputStream(cropped)
                 val originalBitmap = android.graphics.BitmapFactory.decodeStream(inputStream)
-
-                // 300x300 is plenty for a profile circle
                 val resizedBitmap = android.graphics.Bitmap.createScaledBitmap(originalBitmap, 300, 300, true)
                 val compressedFile = File(context.cacheDir, "profile_final.jpg")
 
@@ -103,30 +95,22 @@ fun Settings(navController: NavHostController) {
                     resizedBitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, out)
                 }
 
-                // --- CLOUDINARY UPLOAD ---
-                uploadToCloudinary(Uri.fromFile(compressedFile), context) { newUrl ->
+                // Upload to Cloudinary
+                uploadToCloudinary(Uri.fromFile(compressedFile), "Admin_Profiles") { newUrl ->
                     if (newUrl.isNotEmpty()) {
                         saveProfilePhotoToFirestore(newUrl) { success ->
                             isUploading = false
-                            if (success) {
-                                profileImageUrl = newUrl
-                                (context as? android.app.Activity)?.runOnUiThread {
-                                    Toast.makeText(context, "Profile Updated!", Toast.LENGTH_SHORT).show()
-                                }
-                            }
+                            if (success) profileImageUrl = newUrl
                         }
                     } else {
                         isUploading = false
-                        (context as? android.app.Activity)?.runOnUiThread {
-                            Toast.makeText(context, "Upload Failed", Toast.LENGTH_SHORT).show()
-                        }
                     }
                 }
             }
         }
     }
 
-    // 2. Launcher to Pick Image (Unchanged)
+// 2. Launcher to pick the image from Gallery and start UCrop
     val launcher = rememberLauncherForActivityResult(contract = ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { sourceUri ->
             val destinationUri = Uri.fromFile(File(context.cacheDir, "temp_profile.jpg"))
@@ -139,13 +123,14 @@ fun Settings(navController: NavHostController) {
                 .withAspectRatio(1f, 1f)
                 .withOptions(options)
                 .getIntent(context)
+
+            // This launches the crop activity
             cropLauncher.launch(uCropIntent)
         }
     }
 
-    // --- UI Layout (Keep your existing Scaffold and StatCards) ---
     Scaffold(
-        bottomBar = { AdminBottomBar(navController = navController, currentRoute = "dashboard")}
+        bottomBar = { AdminBottomBar(navController = navController, currentRoute = "settings")}
     ) { padding ->
         Column(
             modifier = Modifier
@@ -154,13 +139,14 @@ fun Settings(navController: NavHostController) {
                 .background(Color(0xFFF8F9FA))
                 .verticalScroll(scrollState)
         ) {
-            // HEADER SECTION
+            // HEADER SECTION (Admin Branded)
             Box(
-                modifier = Modifier.fillMaxWidth().height(230.dp).background(Color(0xFF1976D2)),
+                modifier = Modifier.fillMaxWidth().height(250.dp).background(Color(0xFF19212C)), // Darker Admin Theme
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(contentAlignment = Alignment.Center, modifier = Modifier.size(110.dp)) {
+                        // Profile Image Logic
                         Box(
                             contentAlignment = Alignment.BottomEnd,
                             modifier = Modifier.clickable(enabled = !isUploading) { launcher.launch("image/*") }
@@ -169,58 +155,78 @@ fun Settings(navController: NavHostController) {
                                 model = ImageRequest.Builder(LocalContext.current)
                                     .data(profileImageUrl.ifEmpty { R.drawable.pic_user })
                                     .crossfade(true)
-                                    .diskCachePolicy(coil.request.CachePolicy.ENABLED)
                                     .build(),
-                                contentDescription = "Profile Picture",
-                                modifier = Modifier.size(100.dp).clip(CircleShape).background(Color.White),
-                                contentScale = ContentScale.Crop,
-                                placeholder = painterResource(R.drawable.pic_user),
-                                error = painterResource(R.drawable.pic_user)
+                                contentDescription = "Admin Photo",
+                                modifier = Modifier.size(100.dp).clip(CircleShape).background(Color.White).padding(2.dp),
+                                contentScale = ContentScale.Crop
                             )
-                            if (!isUploading) {
-                                Icon(
-                                    imageVector = Icons.Default.Edit,
-                                    contentDescription = "Edit",
-                                    modifier = Modifier.size(30.dp).background(Color.White, CircleShape).padding(6.dp),
-                                    tint = Color(0xFF1976D2)
-                                )
-                            }
+                            Icon(
+                                imageVector = Icons.Default.CameraAlt,
+                                contentDescription = "Change",
+                                modifier = Modifier.size(28.dp).background(Color.White, CircleShape).padding(6.dp),
+                                tint = Color.Black
+                            )
                         }
-                        if (isUploading) {
-                            CircularProgressIndicator(modifier = Modifier.size(40.dp), color = Color.White, strokeWidth = 4.dp)
-                        }
+                        if (isUploading) CircularProgressIndicator(color = Color.White)
                     }
                     Spacer(modifier = Modifier.height(12.dp))
-                    Text(text = userName, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Verified Citizen", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+                    Text(text = adminName, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+
+                    // ADMIN BADGE
+                    Surface(
+                        color = Color(0xFFFF9800),
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.padding(top = 4.dp)
+                    ) {
+                        Text(
+                            text = "SYSTEM ADMINISTRATOR",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White
+                        )
+                    }
                 }
             }
 
-            // STATS ROW
+            // SYSTEM STATS ROW
+            Text(
+                "System Overview",
+                Modifier.padding(start = 20.dp, top = 20.dp),
+                fontWeight = FontWeight.Bold,
+                color = Color.Gray
+            )
             Row(modifier = Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                StatCard("Reports", reportCount.toString(), Modifier.weight(1f))
-                StatCard("Resolved", resolvedCount.toString(), Modifier.weight(1f))
+                StatCard("Total Issues", globalReportCount.toString(), Modifier.weight(1f))
+                StatCard("Resolved", globalResolvedCount.toString(), Modifier.weight(1f))
             }
 
-            // MENU LIST
+            // ADMIN SETTINGS LIST
+            Text("Management", Modifier.padding(start = 20.dp, bottom = 8.dp), fontWeight = FontWeight.Bold, color = Color.Gray)
             Card(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White)
             ) {
                 Column {
-                    ProfileMenuItem(Icons.Default.History, "My Report History") {
-                        coroutineScope.launch { scrollState.animateScrollTo(scrollState.maxValue) }
+                    ProfileMenuItem(Icons.Default.AdminPanelSettings, "System Logs") {
+                        Toast.makeText(context, "Log access restricted", Toast.LENGTH_SHORT).show()
                     }
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
-                    ProfileMenuItem(Icons.AutoMirrored.Filled.ExitToApp, "Logout", tint = Color.Red) {
+
+                    ProfileMenuItem(Icons.Default.HelpCenter, "Admin Support") {
+                        // Link to developer or documentation
+                    }
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
+
+                    ProfileMenuItem(Icons.AutoMirrored.Filled.ExitToApp, "Sign Out", tint = Color.Red) {
                         auth.signOut()
                         navController.navigate("login") { popUpTo(0) { inclusive = true } }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(40.dp))
         }
     }
 }
