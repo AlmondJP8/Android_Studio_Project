@@ -1,5 +1,6 @@
 package com.UM.cityfix.userpage.components
 
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.HorizontalDivider
@@ -40,6 +42,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -58,11 +61,12 @@ data class Comment(
     val authorId: String = "",
     val author: String = "",
     val text: String = "",
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = 0L
 )
 
 @Composable
 fun CommentScreen(navController: NavHostController, suggestionId: String) {
+    val context = LocalContext.current
     val db = FirebaseFirestore.getInstance()
     val auth = FirebaseAuth.getInstance()
 
@@ -116,26 +120,31 @@ fun CommentScreen(navController: NavHostController, suggestionId: String) {
 
                 IconButton(onClick = {
                     if (commentText.isNotBlank()) {
+                        val currentUser = auth.currentUser
                         val commentRef = db.collection("suggestions")
                             .document(suggestionId)
                             .collection("comments")
                             .document()
 
-                        val newComment = Comment(
-                            id = commentRef.id,
-                            author = auth.currentUser?.email ?: "Anonymous",
-                            text = commentText,
-                            timestamp = System.currentTimeMillis()
+                        val newComment = hashMapOf(
+                            "id" to commentRef.id,
+                            "authorId" to (currentUser?.uid ?: ""),
+                            "author" to (currentUser?.email ?: "Anonymous"),
+                            "text" to commentText.trim(),
+                            "timestamp" to System.currentTimeMillis()
                         )
 
                         commentRef.set(newComment).addOnSuccessListener {
-                            commentText = "" // Clear text on success
-                            // Increment comment count on the main suggestion
+                            commentText = "" // Clear input
+                            // Update the count on the main suggestion document
                             db.collection("suggestions").document(suggestionId)
                                 .update("commentCount", FieldValue.increment(1))
+                        }.addOnFailureListener { e ->
+                            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
                     }
-                }) {
+                })
+                {
                     Icon(Icons.Default.Send, contentDescription = "Send")
                 }
             }
@@ -147,16 +156,20 @@ fun CommentScreen(navController: NavHostController, suggestionId: String) {
 fun CommentItem(comment: Comment) {
     val db = FirebaseFirestore.getInstance()
     var profilePicUrl by remember { mutableStateOf<String?>(null) }
+    var displayName by remember { mutableStateOf(comment.author.split("@")[0]) }
 
-    LaunchedEffect(comment.author) {
-        db.collection("users")
-            .whereEqualTo("email", comment.author)
-            .get()
-            .addOnSuccessListener { querySnapshot ->
-                if (!querySnapshot.isEmpty) {
-                    profilePicUrl = querySnapshot.documents[0].getString("profilePicture")
+    LaunchedEffect(comment.authorId) {
+        if (comment.authorId.isNotEmpty()) {
+            db.collection("users").document(comment.authorId)
+                .get()
+                .addOnSuccessListener { doc ->
+                    if (doc.exists()) {
+                        profilePicUrl = doc.getString("profilePicture")
+                        val fName = doc.getString("firstName") ?: ""
+                        if (fName.isNotEmpty()) displayName = fName
+                    }
                 }
-            }
+        }
     }
 
     Row(
@@ -223,7 +236,9 @@ fun CommentItem(comment: Comment) {
 
 @Composable
 fun CommentSheetContent(suggestionId: String) {
+    val context = LocalContext.current // Added
     val db = FirebaseFirestore.getInstance()
+    val auth = FirebaseAuth.getInstance() // Added
     var commentText by remember { mutableStateOf("") }
     val comments = remember { mutableStateListOf<Comment>() }
     val listState = rememberLazyListState()
@@ -250,37 +265,56 @@ fun CommentSheetContent(suggestionId: String) {
 
     Column(
         modifier = Modifier
-            .fillMaxHeight(0.6f) // Set a specific height so it doesn't float
+            .fillMaxHeight(0.7f) // Increased slightly for better view
             .fillMaxWidth()
             .background(Color.White)
-            .navigationBarsPadding() // Keeps it above the system nav bar
-            .imePadding()            // Pushes it up when keyboard opens
+            .navigationBarsPadding()
+            .imePadding()
     ) {
-        Text("Comments", modifier = Modifier.padding(16.dp), fontWeight = FontWeight.Bold)
+        Text("Comments", modifier = Modifier.padding(16.dp), fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
 
         LazyColumn(
-            modifier = Modifier
-                .weight(1f) // CRITICAL: This allows the input box to stay visible
-                .fillMaxWidth()
+            state = listState, // Attach the listState here!
+            modifier = Modifier.weight(1f).fillMaxWidth()
         ) {
             items(comments) { comment -> CommentItem(comment) }
         }
 
         // The Input Box - Ensure this is OUTSIDE the LazyColumn but INSIDE the Column
-        Surface(
-            modifier = Modifier.fillMaxWidth(),
-            tonalElevation = 2.dp,
-            color = Color.White
-        ) {
-            Row(modifier = Modifier.padding(16.dp)) {
+        Surface(modifier = Modifier.fillMaxWidth(), tonalElevation = 8.dp, shadowElevation = 8.dp) {
+            Row(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 OutlinedTextField(
                     value = commentText,
                     onValueChange = { commentText = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Write a comment...") }
+                    placeholder = { Text("Write a comment...") },
+                    shape = RoundedCornerShape(24.dp) // Makes it look more like a chat bubble
                 )
-                IconButton(onClick = { /* ... */ }) {
-                    Icon(Icons.Default.Send, contentDescription = "Send")
+                Spacer(modifier = Modifier.width(8.dp))
+                IconButton(
+                    onClick = {
+                        if (commentText.isNotBlank()) {
+                            val user = auth.currentUser
+                            val ref = db.collection("suggestions").document(suggestionId).collection("comments").document()
+
+                            val data = hashMapOf(
+                                "id" to ref.id,
+                                "authorId" to (user?.uid ?: ""),
+                                "author" to (user?.email ?: "Anonymous"),
+                                "text" to commentText.trim(),
+                                "timestamp" to System.currentTimeMillis()
+                            )
+
+                            ref.set(data).addOnSuccessListener {
+                                commentText = ""
+                                db.collection("suggestions").document(suggestionId)
+                                    .update("commentCount", FieldValue.increment(1))
+                            }
+                        }
+                    },
+                    enabled = commentText.isNotBlank()
+                ) {
+                    Icon(Icons.Default.Send, contentDescription = "Send", tint = if(commentText.isNotBlank()) Color(0xFF4191E3) else Color.Gray)
                 }
             }
         }

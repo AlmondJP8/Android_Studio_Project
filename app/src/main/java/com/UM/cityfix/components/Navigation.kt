@@ -46,7 +46,16 @@ fun AppNav(navController: NavHostController) {
         composable ("usernav") { UserNavBar(navController) }
 
         composable("communitypage") { CommunityBoard(navController) }
-        composable("submission") { submission(navController, onSuccess = { navController.popBackStack() }) }
+        composable("submission") {
+            submission(
+                navController = navController,
+                onSuccess = {
+                    navController.navigate("user_dashboard") {
+                        popUpTo("submission") { inclusive = true }
+                    }
+                }
+            )
+        }
         composable("profile") { ProfileScreen(navController = navController) }
 
         composable("comments/{suggestionId}", arguments = listOf(navArgument("suggestionId")
