@@ -87,7 +87,7 @@ fun CommunityBoard(navController: NavHostController? = null) {
         bottomBar = { UserNavBar(navController = navController) }
     ) { innerPadding ->
         Column(Modifier.MainBG().padding(innerPadding)) {
-            Text("DashBoard", Modifier.padding(start = 15.dp), style = MaterialTheme.typography.headlineMedium)
+            Text("Community Board", Modifier.padding(start = 15.dp, bottom = 15.dp), style = MaterialTheme.typography.headlineMedium)
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),

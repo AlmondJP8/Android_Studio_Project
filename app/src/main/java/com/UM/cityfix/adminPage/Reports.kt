@@ -105,7 +105,7 @@ fun ReportsPage(navController: NavController?) {
         {
             Text(
                 text = "Reports",
-                Modifier.padding(20.dp),
+                Modifier.padding(top = 30.dp),
                 style = MaterialTheme.typography.headlineSmall,
                 fontWeight = FontWeight.Bold
             )

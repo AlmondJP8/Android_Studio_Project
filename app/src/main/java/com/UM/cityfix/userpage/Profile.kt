@@ -167,7 +167,7 @@ fun ProfileScreen(navController: NavHostController) {
         ) {
             // HEADER SECTION
             Box(
-                modifier = Modifier.fillMaxWidth().height(230.dp).background(Color(0xFF1976D2)),
+                modifier = Modifier.fillMaxWidth().height(230.dp).background(Color(0xFF19212C)),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -203,7 +203,19 @@ fun ProfileScreen(navController: NavHostController) {
                     }
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(text = userName, color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Verified Citizen", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+                    Surface(
+                        color = Color(0xFFFF9800),
+                        shape = RoundedCornerShape(10.dp),
+                        modifier = Modifier.padding(top = 4.dp)
+                    ){
+                        Text(text = "Verified Citizen",
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color.White
+                        )
+
+                    }
                 }
             }
 
@@ -233,6 +245,7 @@ fun ProfileScreen(navController: NavHostController) {
             }
 
             // RECENT REPORTS
+            // RECENT REPORTS
             Spacer(modifier = Modifier.height(24.dp))
             Text("Recent Reports", modifier = Modifier.padding(horizontal = 24.dp), fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(12.dp))
@@ -242,17 +255,25 @@ fun ProfileScreen(navController: NavHostController) {
                     Text("No reports found", color = Color.Gray)
                 }
             } else {
-                // Inside your ProfileScreen loop:
-                userIssues.forEach { issue ->
+                // We take only the first 3 items from the list
+                userIssues.take(3).forEach { issue ->
                     ProfileIssueItem(
                         title = issue["title"]?.toString() ?: "General Issue",
                         status = issue["status"]?.toString() ?: "Pending",
                         location = issue["locationName"]?.toString() ?: "No description",
-                        imageUrl = issue["imageUrl"]?.toString() ?.replace("/upload/", "/upload/w_200,c_thumb/") ?: ""
+                        imageUrl = issue["imageUrl"]?.toString()?.replace("/upload/", "/upload/w_200,c_thumb/") ?: ""
                     )
                 }
+
+                // Optional: Add a "See All" button if there are more than 3
+                if (userIssues.size > 3) {
+                    TextButton(
+                        onClick = { /* Navigate to a full list screen if you have one */ },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                    }
+                }
             }
-            Spacer(modifier = Modifier.height(32.dp))
         }
     }
 }

@@ -47,12 +47,12 @@ import com.google.firebase.firestore.FirebaseFirestore
 fun DashBoard(navController: NavHostController? = null) {
     val db = FirebaseFirestore.getInstance()
 
-    // States for the Dashboard Stats
+    // Combined States
     var totalIssues by remember { mutableIntStateOf(0) }
     var pendingIssues by remember { mutableIntStateOf(0) }
     var resolvedIssues by remember { mutableIntStateOf(0) }
-    var ongoingIssues by remember {mutableIntStateOf(0)}
-    var blockedIssues by remember {mutableIntStateOf(0)}
+    var ongoingIssues by remember { mutableIntStateOf(0) }
+    var blockedIssues by remember { mutableIntStateOf(0) }
     var allIssues by remember { mutableStateOf(listOf<IssueItem>()) }
 
     // Fetch counts from Firestore
@@ -66,6 +66,27 @@ fun DashBoard(navController: NavHostController? = null) {
                 blockedIssues = snapshot.documents.count { it.getString("status") == "Blocked" }
             }
         }
+    }// SINGLE Listener for efficiency
+    LaunchedEffect(Unit) {
+        db.collection("Issues").addSnapshotListener { snapshot, _ ->
+            snapshot?.let { docs ->
+                totalIssues = docs.size()
+
+                // Process counts in one pass
+                val list = docs.documents.map { doc ->
+                    IssueItem(
+                        category = doc.getString("category") ?: "Uncategorized",
+                        status = doc.getString("status") ?: "Pending"
+                    )
+                }
+
+                allIssues = list
+                pendingIssues = list.count { it.status == "Pending" }
+                ongoingIssues = list.count { it.status == "Ongoing" }
+                resolvedIssues = list.count { it.status == "Resolved" }
+                blockedIssues = list.count { it.status == "Blocked" }
+            }
+        }
     }
 
     Scaffold(
@@ -75,13 +96,11 @@ fun DashBoard(navController: NavHostController? = null) {
             modifier = Modifier
                 .fillMaxSize()
                 .MainBG()
+                // Apply padding from Scaffold to prevent overlap with BottomBar
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
         ) {
-            // 1. Header
             Column(modifier = Modifier.padding(16.dp)) {
-
-                // 2. Welcome Message
                 Text(
                     text = "Welcome back, Admin",
                     style = MaterialTheme.typography.headlineSmall,
@@ -95,7 +114,7 @@ fun DashBoard(navController: NavHostController? = null) {
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // 3. Stats Row
+                // Stats Rows
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -104,36 +123,27 @@ fun DashBoard(navController: NavHostController? = null) {
                     DashboardStatCard("Pending", pendingIssues.toString(), Color(0xFF757575), Modifier.weight(1f))
                     DashboardStatCard("Ongoing", ongoingIssues.toString(), Color(0xFF2196F3), Modifier.weight(1f))
                 }
+
                 Spacer(modifier = Modifier.height(10.dp))
 
-                // ROW 2: The Action-Required / Finalized Statuses
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     DashboardStatCard("Fixed", resolvedIssues.toString(), Color(0xFF388E3C), Modifier.weight(1f))
                     DashboardStatCard("Blocked", blockedIssues.toString(), Color(0xFFD32F2F), Modifier.weight(1f))
+                    // Balanced the UI by adding an empty spacer or a 3rd card here if needed
+                    Spacer(modifier = Modifier.weight(1f))
+                }
 
-                }
-            }
-                Spacer(modifier = Modifier.height(10.dp))
-                LaunchedEffect(Unit) {
-                    db.collection("Issues").addSnapshotListener { snapshot, _ ->
-                        if (snapshot != null) {
-                            allIssues = snapshot.documents.map { doc ->
-                                IssueItem(
-                                    category = doc.getString("category") ?: "",
-                                    status = doc.getString("status") ?: "Pending"
-                                    // ... other fields if needed ...
-                                )
-                            }
-                        }
-                    }
-                }
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // The Chart
                 CategoryChart(issues = allIssues, navController = navController)
             }
         }
     }
+}
 
 @Composable
 fun DashboardStatCard(label: String, count: String, color: Color, modifier: Modifier) {

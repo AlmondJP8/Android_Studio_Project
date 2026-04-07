@@ -214,8 +214,8 @@ fun Settings(navController: NavHostController) {
                     }
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
 
-                    ProfileMenuItem(Icons.Default.HelpCenter, "Admin Support") {
-                        // Link to developer or documentation
+                    ProfileMenuItem(Icons.Default.People, "User Accounts") {
+                        navController.navigate("accounts") { launchSingleTop = true }
                     }
                     HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), thickness = 0.5.dp)
 

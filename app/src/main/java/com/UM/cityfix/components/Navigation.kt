@@ -11,6 +11,7 @@ import androidx.navigation.navArgument
 import com.UM.cityfix.Greeting
 import com.UM.cityfix.Login
 import com.UM.cityfix.Signup
+import com.UM.cityfix.adminPage.AdminUserManagementScreen
 import com.UM.cityfix.adminPage.DashBoard
 import com.UM.cityfix.adminPage.Issues.Hazards
 import com.UM.cityfix.adminPage.Issues.Power
@@ -92,6 +93,7 @@ fun AppNav(navController: NavHostController) {
         }
 
         composable("setting") { Settings(navController = navController) }
+        composable ("accounts"){ AdminUserManagementScreen(navController = navController)}
         composable(
             route = "issueDetail/{issueId}",
             arguments = listOf(navArgument("issueId") { type = NavType.StringType })
